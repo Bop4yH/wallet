@@ -1,0 +1,37 @@
+package com.example.wallet.transfer;
+
+import com.example.wallet.transfer.dto.TransferByNamesRequest;
+import com.example.wallet.transfer.dto.TransferRequest;
+import com.example.wallet.transfer.dto.TransferResponse;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
+
+@RestController
+@RequestMapping(value = "/transfers", produces = MediaType.APPLICATION_JSON_VALUE)
+@RequiredArgsConstructor
+public class TransferController {
+
+    private final TransferService service;
+
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public TransferResponse create(@Valid @RequestBody TransferRequest req) {
+        return service.transfer(req);
+    }
+
+    @PostMapping(value = "/by-names", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public TransferResponse createByNames(@Valid @RequestBody TransferByNamesRequest req) {
+        return service.transferByNames(req);
+    }
+
+    @GetMapping("/{id}")
+    public TransferResponse get(@PathVariable UUID id) {
+        return service.get(id);
+    }
+}

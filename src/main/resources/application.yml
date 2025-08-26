@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:15432/wallet
+    username: wallet
+    password: wallet
+  jpa:
+    open-in-view: false
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
+
