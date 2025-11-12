@@ -10,7 +10,11 @@ import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -35,16 +39,6 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class Account {
-
-    @Column(name = "balance", nullable = false, precision = 19, scale = 2)
-    private BigDecimal balance;
-
-    @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt;
-
-    @Column(name = "currency", nullable = false, length = 3)
-    private String currency;
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(columnDefinition = "uuid")
@@ -52,6 +46,15 @@ public class Account {
 
     @Column(name = "owner_name", nullable = false, length = 100)
     private String ownerName;
+
+    @Column(name = "balance", nullable = false, precision = 19, scale = 2)
+    private BigDecimal balance;
+
+    @Column(name = "currency", nullable = false, length = 3)
+    private String currency;
+
+    @Column(name = "created_at", nullable = false)
+    private OffsetDateTime createdAt;
 
     @PrePersist
     void prePersist() {

@@ -1,5 +1,6 @@
 package com.example.wallet.transfer.dto;
 
+import com.example.wallet.common.MoneyConstants;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
@@ -22,7 +23,7 @@ public class TransferByNamesRequest {
     private String currency;
 
     @NotNull
-    @DecimalMin(value = "0.01", message = "amount must be > 0")
-    @Digits(integer = 17, fraction = 2)
+    @DecimalMin(value = MoneyConstants.MIN_AMOUNT, message = MoneyConstants.MIN_AMOUNT_MESSAGE)
+    @Digits(integer = MoneyConstants.PRECISION, fraction = MoneyConstants.SCALE)
     private BigDecimal amount;
 }

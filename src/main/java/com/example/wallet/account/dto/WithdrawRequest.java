@@ -9,12 +9,12 @@ import lombok.Data;
 import java.math.BigDecimal;
 
 @Data
-public class DepositRequest {
-
+public class WithdrawRequest {
     @DecimalMin(value = MoneyConstants.MIN_AMOUNT, message = MoneyConstants.MIN_AMOUNT_MESSAGE)
     @Digits(integer = MoneyConstants.MAX_DIGITS,
         fraction = MoneyConstants.SCALE,
         message = "max 2 fraction digits")
     @NotNull
-    private BigDecimal amount;
+    BigDecimal amount;
+
 }

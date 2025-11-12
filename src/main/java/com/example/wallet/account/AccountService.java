@@ -54,7 +54,7 @@ public class AccountService {
     /**
      * Пополняет баланс счёта.
      *
-     * @param id идентификатор счёта
+     * @param id     идентификатор счёта
      * @param amount сумма пополнения (будет округлена до 2 знаков)
      * @return обновлённая информация о счёте
      * @throws ResponseStatusException если счёт не найден
@@ -89,6 +89,18 @@ public class AccountService {
         account.setBalance(account.getBalance().add(normalized));
 
         return toResponse(account);
+    }
+
+    @Transactional
+    public AccountResponse withdraw(UUID id, BigDecimal amount) {
+        Account from = repo.findByIdForUpdate(id)
+                .orElseThrow((() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND)));
+        if (from.getBalance().compareTo(amount)<0){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient funds");
+        }
+        from.setBalance(from.getBalance().subtract(amount));
+        return toResponse(from);
+
     }
 
     private static AccountResponse toResponse(Account a) {

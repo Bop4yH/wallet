@@ -4,13 +4,22 @@ import com.example.wallet.account.dto.AccountResponse;
 import com.example.wallet.account.dto.BalanceResponse;
 import com.example.wallet.account.dto.CreateAccountRequest;
 import com.example.wallet.account.dto.DepositRequest;
+import com.example.wallet.account.dto.WithdrawRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
@@ -61,6 +70,7 @@ public class AccountController {
     @PostMapping(value = "/by-name/{ownerName}/deposit", consumes = MediaType.APPLICATION_JSON_VALUE)
     public AccountResponse depositByName(
             @PathVariable String ownerName,
+            @Pattern(regexp = "^[A-Za-z]{3}$", message = "Currency must be 3 letters")
             @RequestParam String currency,
             @Valid @RequestBody DepositRequest req
     ) {
@@ -70,5 +80,10 @@ public class AccountController {
     @GetMapping("/show-accept-header")
     public String showAcceptHeader(@RequestHeader("Accept") String acceptHeader) {
         return "Сервер получил следующий заголовок Accept: " + acceptHeader;
+    }
+
+    @PostMapping(value = "/{id}/withdraw", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public AccountResponse withdraw(@PathVariable UUID id, @Valid @RequestBody WithdrawRequest req){
+        return service.withdraw(id,req.getAmount());
     }
 }
