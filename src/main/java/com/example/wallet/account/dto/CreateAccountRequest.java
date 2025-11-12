@@ -16,6 +16,6 @@ public class CreateAccountRequest {
      * Должен состоять из 3 заглавных букв (например: USD, EUR, RUB).
      */
     @NotBlank
-    @Pattern(regexp = "^[A-Z]{3}$", message = "Use ISO currency code, e.g. RUB")
+    @Pattern(regexp = "^[A-Za-z]{3}$", message = "Use ISO currency code, e.g. RUB")
     private String currency;
 }

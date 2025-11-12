@@ -18,7 +18,7 @@ public class TransferByNamesRequest {
     private String toName;
 
     @NotBlank
-    @Pattern(regexp = "^[A-Z]{3}$", message = "Use ISO currency code, e.g. RUB")
+    @Pattern(regexp = "^[A-Za-z]{3}$", message = "Use ISO currency code, e.g. RUB")
     private String currency;
 
     @NotNull

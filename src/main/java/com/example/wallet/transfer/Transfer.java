@@ -17,6 +17,7 @@ import java.util.UUID;
 public class Transfer {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(columnDefinition = "uuid")
     private UUID id;
 
@@ -37,7 +38,6 @@ public class Transfer {
 
     @PrePersist
     void prePersist() {
-        if (id == null) id = UUID.randomUUID();
         if (amount != null) amount = amount.setScale(2, RoundingMode.HALF_UP);
         if (createdAt == null) createdAt = OffsetDateTime.now(ZoneOffset.UTC);
         if (status == null) status = "COMPLETED";

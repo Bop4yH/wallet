@@ -5,9 +5,11 @@ import com.example.wallet.account.dto.BalanceResponse;
 import com.example.wallet.account.dto.CreateAccountRequest;
 import com.example.wallet.account.dto.DepositRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,6 +17,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping(value = "/accounts", produces = MediaType.APPLICATION_JSON_VALUE)
+@Validated
 @RequiredArgsConstructor
 public class AccountController {
 
@@ -37,7 +40,7 @@ public class AccountController {
     }
 
     @GetMapping("/by-name/{ownerName}")
-    public AccountResponse getByName(@PathVariable String ownerName, @RequestParam String currency) {
+    public AccountResponse getByName(@PathVariable String ownerName, @RequestParam @Pattern(regexp = "^[A-Za-z]{3}$", message = "Currency must be 3 letters") String currency) {
         return service.getByName(ownerName, currency);
     }
 
@@ -46,7 +49,7 @@ public class AccountController {
         return service.getBalance(id);
     }
 
-    @PostMapping(value = "/{id}/deposit", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(value = "/{id}/deposit", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE})
     public AccountResponse deposit(@PathVariable UUID id, @Valid @RequestBody DepositRequest req) {
         return service.deposit(id, req.getAmount());
     }
@@ -56,5 +59,10 @@ public class AccountController {
                                          @RequestParam String currency,
                                          @Valid @RequestBody DepositRequest req) {
         return service.depositByName(ownerName, currency, req.getAmount());
+    }
+
+    @GetMapping("/show-accept-header")
+    public String showAcceptHeader(@RequestHeader("Accept") String acceptHeader) {
+        return "Сервер получил следующий заголовок Accept: " + acceptHeader;
     }
 }

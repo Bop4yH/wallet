@@ -3,6 +3,7 @@ package com.example.wallet.account;
 import com.example.wallet.account.dto.AccountResponse;
 import com.example.wallet.account.dto.BalanceResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +27,16 @@ public class AccountService {
                 .ownerName(ownerName)
                 .currency(currency)
                 .build();
-        a = repo.save(a);
-        return toResponse(a);
+
+        try {
+            a = repo.save(a);
+            return toResponse(a);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Account already exists for " + ownerName + " in " + currency.toUpperCase()
+            );
+        }
     }
 
     public AccountResponse get(UUID id) {

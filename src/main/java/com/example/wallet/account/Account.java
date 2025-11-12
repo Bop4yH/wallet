@@ -1,6 +1,15 @@
 package com.example.wallet.account;
 
-import jakarta.persistence.*;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -10,9 +19,16 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
-@Table(name = "accounts", indexes = {
-        @Index(name = "idx_owner_currency", columnList = "owner_name, currency")
-})
+@Table(name = "accounts",
+        indexes = {
+                @Index(name = "idx_owner_currency", columnList = "owner_name, currency")
+        },
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_owner_currency",
+                        columnNames = {"owner_name", "currency"}
+                )
+        })
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,25 +36,25 @@ import java.util.UUID;
 @Builder
 public class Account {
 
-    @Id
-    @Column(columnDefinition = "uuid")
-    private UUID id;
-
-    @Column(name = "owner_name", nullable = false, length = 100)
-    private String ownerName;
-
-    @Column(name = "currency", nullable = false, length = 3)
-    private String currency;
-
     @Column(name = "balance", nullable = false, precision = 19, scale = 2)
     private BigDecimal balance;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    @Column(name = "currency", nullable = false, length = 3)
+    private String currency;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(columnDefinition = "uuid")
+    private UUID id;
+
+    @Column(name = "owner_name", nullable = false, length = 100)
+    private String ownerName;
+
     @PrePersist
     void prePersist() {
-        if (id == null) id = UUID.randomUUID();
         if (currency != null) currency = currency.toUpperCase();
         if (balance == null) balance = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         if (createdAt == null) createdAt = OffsetDateTime.now(ZoneOffset.UTC);

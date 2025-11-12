@@ -34,4 +34,9 @@ public class TransferController {
     public TransferResponse get(@PathVariable UUID id) {
         return service.get(id);
     }
+
+    @PostMapping("/{id}/cancel")
+    public TransferResponse cancel(@PathVariable UUID id) {
+        return service.cancel(id);
+    }
 }

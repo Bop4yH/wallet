@@ -13,6 +13,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 /**
@@ -24,10 +26,12 @@ import java.util.UUID;
 public class TransferService {
 
     private final AccountRepository accountRepo;
+
     private final TransferRepository transferRepo;
+
     /**
      * Выполняет перевод между счетами по их ID.
-     *
+     * <p>
      * Использует пессимистичные блокировки для предотвращения race conditions
      * и детерминированный порядок блокировки для предотвращения deadlock.
      *
@@ -42,14 +46,9 @@ public class TransferService {
         if (fromId.equals(toId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from and to must differ");
         }
-        BigDecimal amount = req.getAmount();
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "amount must be > 0");
-        }
-        BigDecimal normalized = amount.setScale(2, RoundingMode.HALF_UP);
-
-        UUID first = fromId.compareTo(toId) < 0 ? fromId : toId;
-        UUID second = fromId.compareTo(toId) < 0 ? toId : fromId;
+        int comparison = fromId.compareTo(toId);
+        UUID first = comparison < 0 ? fromId : toId;
+        UUID second = comparison < 0 ? toId : fromId;
 
         Account firstAcc = accountRepo.findByIdForUpdate(first)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
@@ -57,27 +56,38 @@ public class TransferService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
 
         Account from = firstAcc.getId().equals(fromId) ? firstAcc : secondAcc;
-        Account to = from == firstAcc ? secondAcc : firstAcc;
+        Account to = firstAcc.getId().equals(toId) ? firstAcc : secondAcc;
 
-        if (!from.getCurrency().equalsIgnoreCase(to.getCurrency())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "currency mismatch");
-        }
-        if (from.getBalance().compareTo(normalized) < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "insufficient funds");
-        }
+        return transferByAccounts(from, to, req.getAmount());
+    }
 
-        from.setBalance(from.getBalance().subtract(normalized));
-        to.setBalance(to.getBalance().add(normalized));
+    @Transactional
+    public TransferResponse transferByNames(TransferByNamesRequest req) {
+        String currency = req.getCurrency().toUpperCase();
+        boolean isFromNameFirst = req.getFromName().compareToIgnoreCase(req.getToName()) < 0;
+        String firstName = isFromNameFirst ? req.getFromName() : req.getToName();
+        String secondName = isFromNameFirst ? req.getToName() : req.getFromName();
 
-        Transfer t = Transfer.builder()
-                .fromAccountId(fromId)
-                .toAccountId(toId)
-                .amount(normalized)
-                .status("COMPLETED")
-                .build();
+        Account firstAcc = accountRepo.findByNameAndCurrencyForUpdate(firstName, currency)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Account not found: " + firstName
+                ));
 
-        t = transferRepo.save(t);
+        Account secondAcc = accountRepo.findByNameAndCurrencyForUpdate(secondName, currency)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Account not found: " + secondName
+                ));
 
+        Account from = isFromNameFirst ? firstAcc : secondAcc;
+        Account to = isFromNameFirst ? secondAcc : firstAcc;
+        return transferByAccounts(from, to, req.getAmount());
+    }
+
+    public TransferResponse get(UUID id) {
+        Transfer t = transferRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transfer not found"));
         return new TransferResponse(
                 t.getId(), t.getFromAccountId(), t.getToAccountId(),
                 t.getAmount(), t.getStatus(), t.getCreatedAt()
@@ -85,46 +95,65 @@ public class TransferService {
     }
 
     @Transactional
-    public TransferResponse transferByNames(TransferByNamesRequest req) {
-        String currency = req.getCurrency().toUpperCase();
+    public TransferResponse cancel(UUID id) {
+        Transfer t = transferRepo.findByIdForUpdate(id).orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "no such transfer"
+        ));
+        UUID fromId = t.getFromAccountId();
+        UUID toId = t.getToAccountId();
+        if (t.getStatus().equals("CANCELLED")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "transfer already cancelled");
+        }
+        if (t.getCreatedAt().plusMinutes(5).isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "5 minutes passed, can't cancel");
+        }
 
-        BigDecimal amount = req.getAmount();
+
+        int comparison = fromId.compareTo(toId);
+        UUID first = comparison < 0 ? fromId : toId;
+        UUID second = comparison < 0 ? toId : fromId;
+
+        Account firstAcc =
+                accountRepo.findByIdForUpdate(first).orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "account already not exists"
+                ));
+        Account secondAcc =
+                accountRepo.findByIdForUpdate(second).orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "account already not exists"
+                ));
+
+        Account to = firstAcc.getId().equals(toId)? firstAcc:secondAcc;
+        Account from = firstAcc.getId().equals(fromId)? firstAcc:secondAcc;
+
+        if (to.getBalance().compareTo(t.getAmount()) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Cannot cancel: recipient has insufficient funds");
+        }
+        to.setBalance(to.getBalance().subtract(t.getAmount()));
+        from.setBalance(from.getBalance().add(t.getAmount()));
+        t.setStatus("CANCELLED");
+        return new TransferResponse(
+                t.getId(), t.getFromAccountId(), t.getToAccountId(),
+                t.getAmount(), t.getStatus(), t.getCreatedAt()
+        );
+    }
+
+    private TransferResponse transferByAccounts(Account from, Account to, BigDecimal amount) {
+
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "amount must be > 0");
         }
         BigDecimal normalized = amount.setScale(2, RoundingMode.HALF_UP);
-
-        String firstName;
-        String secondName;
-        boolean isFromFirst;
-
-        if (req.getFromName().compareToIgnoreCase(req.getToName()) < 0) {
-            firstName = req.getFromName();
-            secondName = req.getToName();
-            isFromFirst = true;
-        } else {
-            firstName = req.getToName();
-            secondName = req.getFromName();
-            isFromFirst = false;
-        }
-
-        Account firstAcc = accountRepo.findByNameAndCurrencyForUpdate(firstName, currency)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Account not found: " + firstName));
-
-        Account secondAcc = accountRepo.findByNameAndCurrencyForUpdate(secondName, currency)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Account not found: " + secondName));
-
-        Account from = isFromFirst ? firstAcc : secondAcc;
-        Account to = isFromFirst ? secondAcc : firstAcc;
-
         if (from.getId().equals(to.getId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot transfer to same account");
         }
 
         if (from.getBalance().compareTo(normalized) < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient funds");
+        }
+
+        if (!from.getCurrency().equalsIgnoreCase(to.getCurrency())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "currency mismatch");
         }
 
         from.setBalance(from.getBalance().subtract(normalized));
@@ -139,15 +168,6 @@ public class TransferService {
 
         t = transferRepo.save(t);
 
-        return new TransferResponse(
-                t.getId(), t.getFromAccountId(), t.getToAccountId(),
-                t.getAmount(), t.getStatus(), t.getCreatedAt()
-        );
-    }
-
-    public TransferResponse get(UUID id) {
-        Transfer t = transferRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transfer not found"));
         return new TransferResponse(
                 t.getId(), t.getFromAccountId(), t.getToAccountId(),
                 t.getAmount(), t.getStatus(), t.getCreatedAt()
