@@ -1,5 +1,6 @@
 package com.example.wallet.transfer.dto;
 
+import com.example.wallet.transfer.TransferStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -14,6 +15,6 @@ public class TransferResponse {
     private UUID fromAccountId;
     private UUID toAccountId;
     private BigDecimal amount;
-    private String status;
+    private TransferStatus status;
     private OffsetDateTime createdAt;
 }

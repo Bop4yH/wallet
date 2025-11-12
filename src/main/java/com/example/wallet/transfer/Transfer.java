@@ -31,7 +31,7 @@ public class Transfer {
     private BigDecimal amount;
 
     @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    private TransferStatus status;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -40,6 +40,6 @@ public class Transfer {
     void prePersist() {
         if (amount != null) amount = amount.setScale(2, RoundingMode.HALF_UP);
         if (createdAt == null) createdAt = OffsetDateTime.now(ZoneOffset.UTC);
-        if (status == null) status = "COMPLETED";
+        if (status == null) status = TransferStatus.COMPLETED;
     }
 }

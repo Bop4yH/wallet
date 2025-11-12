@@ -101,7 +101,7 @@ public class TransferService {
         ));
         UUID fromId = t.getFromAccountId();
         UUID toId = t.getToAccountId();
-        if (t.getStatus().equals("CANCELLED")) {
+        if (t.getStatus()==TransferStatus.CANCELLED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "transfer already cancelled");
         }
         if (t.getCreatedAt().plusMinutes(5).isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
@@ -131,7 +131,7 @@ public class TransferService {
         }
         to.setBalance(to.getBalance().subtract(t.getAmount()));
         from.setBalance(from.getBalance().add(t.getAmount()));
-        t.setStatus("CANCELLED");
+        t.setStatus(TransferStatus.CANCELLED);
         return new TransferResponse(
                 t.getId(), t.getFromAccountId(), t.getToAccountId(),
                 t.getAmount(), t.getStatus(), t.getCreatedAt()
@@ -163,7 +163,7 @@ public class TransferService {
                 .fromAccountId(from.getId())
                 .toAccountId(to.getId())
                 .amount(normalized)
-                .status("COMPLETED")
+                .status(TransferStatus.COMPLETED)
                 .build();
 
         t = transferRepo.save(t);

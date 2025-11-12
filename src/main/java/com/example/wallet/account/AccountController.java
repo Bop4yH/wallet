@@ -40,7 +40,10 @@ public class AccountController {
     }
 
     @GetMapping("/by-name/{ownerName}")
-    public AccountResponse getByName(@PathVariable String ownerName, @RequestParam @Pattern(regexp = "^[A-Za-z]{3}$", message = "Currency must be 3 letters") String currency) {
+    public AccountResponse getByName(
+            @PathVariable String ownerName,
+            @RequestParam @Pattern(regexp = "^[A-Za-z]{3}$", message = "Currency must be 3 letters") String currency
+    ) {
         return service.getByName(ownerName, currency);
     }
 
@@ -49,15 +52,18 @@ public class AccountController {
         return service.getBalance(id);
     }
 
-    @PostMapping(value = "/{id}/deposit", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE})
+    @PostMapping(value = "/{id}/deposit", consumes = {MediaType.APPLICATION_JSON_VALUE,
+            MediaType.APPLICATION_XML_VALUE})
     public AccountResponse deposit(@PathVariable UUID id, @Valid @RequestBody DepositRequest req) {
         return service.deposit(id, req.getAmount());
     }
 
     @PostMapping(value = "/by-name/{ownerName}/deposit", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public AccountResponse depositByName(@PathVariable String ownerName,
-                                         @RequestParam String currency,
-                                         @Valid @RequestBody DepositRequest req) {
+    public AccountResponse depositByName(
+            @PathVariable String ownerName,
+            @RequestParam String currency,
+            @Valid @RequestBody DepositRequest req
+    ) {
         return service.depositByName(ownerName, currency, req.getAmount());
     }
 
