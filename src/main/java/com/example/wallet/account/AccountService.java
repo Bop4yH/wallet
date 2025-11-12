@@ -102,6 +102,18 @@ public class AccountService {
         return toResponse(from);
 
     }
+    @Transactional
+    public void delete(UUID id) {
+        Account toDelete =
+                repo.findByIdForUpdate(id).orElseThrow(()-> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        ACCOUNT_NOT_FOUND));
+        if (toDelete.getBalance().compareTo(BigDecimal.ZERO) == 0) {
+            repo.delete(toDelete);
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "account must have no funds to delete");
+        }
+    }
 
     private static AccountResponse toResponse(Account a) {
         return new AccountResponse(
