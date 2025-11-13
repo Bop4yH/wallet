@@ -1,5 +1,6 @@
 package com.example.wallet.transfer;
 
+import com.example.wallet.transfer.dto.CountResponse;
 import com.example.wallet.transfer.dto.TransferByNamesRequest;
 import com.example.wallet.transfer.dto.TransferRequest;
 import com.example.wallet.transfer.dto.TransferResponse;
@@ -44,5 +45,10 @@ public class TransferController {
     @PostMapping("/{id}/cancel")
     public TransferResponse cancel(@PathVariable UUID id) {
         return service.cancel(id);
+    }
+
+    @GetMapping("/count")
+    public CountResponse count(){
+        return service.count();
     }
 }

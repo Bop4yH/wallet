@@ -2,6 +2,7 @@ package com.example.wallet.transfer;
 
 import com.example.wallet.account.Account;
 import com.example.wallet.account.AccountRepository;
+import com.example.wallet.transfer.dto.CountResponse;
 import com.example.wallet.transfer.dto.TransferByNamesRequest;
 import com.example.wallet.transfer.dto.TransferRequest;
 import com.example.wallet.transfer.dto.TransferResponse;
@@ -136,6 +137,10 @@ public class TransferService {
                 t.getId(), t.getFromAccountId(), t.getToAccountId(),
                 t.getAmount(), t.getStatus(), t.getCreatedAt()
         );
+    }
+
+    public CountResponse count() {
+        return new CountResponse(transferRepo.countTransfersByStatus(TransferStatus.COMPLETED));
     }
 
     private TransferResponse transferByAccounts(Account from, Account to, BigDecimal amount) {

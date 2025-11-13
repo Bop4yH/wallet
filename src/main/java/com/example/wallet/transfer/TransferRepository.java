@@ -13,4 +13,7 @@ public interface TransferRepository extends JpaRepository<Transfer, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM Transfer t WHERE t.id = :id")
     Optional<Transfer> findByIdForUpdate(@Param("id") UUID id);
+
+    @Query("SELECT COUNT(t) FROM Transfer t WHERE t.status = :status")
+    long countTransfersByStatus(@Param("status") TransferStatus status);
 }
