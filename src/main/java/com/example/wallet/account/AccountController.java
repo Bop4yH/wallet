@@ -1,6 +1,7 @@
 package com.example.wallet.account;
 
 import com.example.wallet.account.dto.AccountResponse;
+import com.example.wallet.account.dto.AccountStatisticsResponse;
 import com.example.wallet.account.dto.BalanceResponse;
 import com.example.wallet.account.dto.CreateAccountRequest;
 import com.example.wallet.account.dto.DepositRequest;
@@ -92,5 +93,10 @@ public class AccountController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID id) {
         service.delete(id);
+    }
+
+    @GetMapping("/{id}/stats")
+    public AccountStatisticsResponse stats(@PathVariable UUID id) {
+        return service.getStatistics(id);
     }
 }

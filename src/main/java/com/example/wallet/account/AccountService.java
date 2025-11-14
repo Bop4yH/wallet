@@ -1,7 +1,9 @@
 package com.example.wallet.account;
 
 import com.example.wallet.account.dto.AccountResponse;
+import com.example.wallet.account.dto.AccountStatisticsResponse;
 import com.example.wallet.account.dto.BalanceResponse;
+import com.example.wallet.transfer.TransferRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -20,7 +22,9 @@ public class AccountService {
 
     private static final String ACCOUNT_NOT_FOUND = "Account not found";
 
-    private final AccountRepository repo;
+    private final AccountRepository accountRepo;
+
+    private final TransferRepository transferRepo;
 
     public AccountResponse create(String ownerName, String currency) {
         Account a = Account.builder()
@@ -29,7 +33,7 @@ public class AccountService {
                 .build();
 
         try {
-            a = repo.save(a);
+            a = accountRepo.save(a);
             return toResponse(a);
         } catch (DataIntegrityViolationException e) {
             throw new ResponseStatusException(
@@ -40,13 +44,13 @@ public class AccountService {
     }
 
     public AccountResponse get(UUID id) {
-        Account a = repo.findById(id)
+        Account a = accountRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND));
         return toResponse(a);
     }
 
     public BalanceResponse getBalance(UUID id) {
-        Account a = repo.findById(id)
+        Account a = accountRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND));
         return new BalanceResponse(a.getBalance(), a.getCurrency());
     }
@@ -61,7 +65,7 @@ public class AccountService {
      */
     @Transactional
     public AccountResponse deposit(UUID id, BigDecimal amount) {
-        Account a = repo.findByIdForUpdate(id)
+        Account a = accountRepo.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND));
 
         BigDecimal normalized = amount.setScale(2, RoundingMode.HALF_UP);
@@ -71,18 +75,18 @@ public class AccountService {
     }
 
     public List<AccountResponse> list() {
-        return repo.findAll().stream().map(AccountService::toResponse).toList();
+        return accountRepo.findAll().stream().map(AccountService::toResponse).toList();
     }
 
     public AccountResponse getByName(String ownerName, String currency) {
-        Account a = repo.findByOwnerNameIgnoreCaseAndCurrency(ownerName, currency.toUpperCase())
+        Account a = accountRepo.findByOwnerNameIgnoreCaseAndCurrency(ownerName, currency.toUpperCase())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND));
         return toResponse(a);
     }
 
     @Transactional
     public AccountResponse depositByName(String ownerName, String currency, BigDecimal amount) {
-        Account account = repo.findByNameAndCurrencyForUpdate(ownerName, currency.toUpperCase())
+        Account account = accountRepo.findByNameAndCurrencyForUpdate(ownerName, currency.toUpperCase())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND));
 
         BigDecimal normalized = amount.setScale(2, RoundingMode.HALF_UP);
@@ -93,26 +97,43 @@ public class AccountService {
 
     @Transactional
     public AccountResponse withdraw(UUID id, BigDecimal amount) {
-        Account from = repo.findByIdForUpdate(id)
+        Account from = accountRepo.findByIdForUpdate(id)
                 .orElseThrow((() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND)));
-        if (from.getBalance().compareTo(amount)<0){
+        if (from.getBalance().compareTo(amount) < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient funds");
         }
         from.setBalance(from.getBalance().subtract(amount));
         return toResponse(from);
 
     }
+
     @Transactional
     public void delete(UUID id) {
         Account toDelete =
-                repo.findByIdForUpdate(id).orElseThrow(()-> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        ACCOUNT_NOT_FOUND));
+                accountRepo.findByIdForUpdate(id).orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        ACCOUNT_NOT_FOUND
+                ));
         if (toDelete.getBalance().compareTo(BigDecimal.ZERO) == 0) {
-            repo.delete(toDelete);
+            accountRepo.delete(toDelete);
         } else {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "account must have no funds to delete");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "account must have no funds to delete"
+            );
         }
+    }
+
+    public AccountStatisticsResponse getStatistics(UUID id) {
+        Account account = accountRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND));
+        return new AccountStatisticsResponse(
+                account.getBalance(),
+                transferRepo.countIncomingTransfersById(id),
+                transferRepo.countOutgoingTransfersById(id),
+                transferRepo.sumIncomingTransfers(id),
+                transferRepo.sumOutgoingTransfers(id)
+        );
     }
 
     private static AccountResponse toResponse(Account a) {

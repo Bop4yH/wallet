@@ -24,4 +24,20 @@ public interface TransferRepository extends JpaRepository<Transfer, UUID> {
             "AND t.status = 'COMPLETED' " +
             "AND t.createdAt >= :startDate")
     BigDecimal sumDailyTransfers(@Param("accountId") UUID accountId, @Param("startDate") OffsetDateTime startDate);
+
+    @Query("SELECT COUNT(t) FROM Transfer t WHERE t.status = 'COMPLETED' AND t.fromAccountId = :accountId")
+    long countOutgoingTransfersById(@Param("accountId") UUID fromId);
+
+    @Query("SELECT COUNT(t) FROM Transfer t WHERE t.status = 'COMPLETED' AND t.toAccountId = :accountId")
+    long countIncomingTransfersById(@Param("accountId") UUID toId);
+
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transfer t " +
+            "WHERE t.fromAccountId = :accountId " +
+            "AND t.status = 'COMPLETED'")
+    BigDecimal sumOutgoingTransfers(@Param("accountId") UUID fromId);
+
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transfer t " +
+            "WHERE t.toAccountId = :accountId " +
+            "AND t.status = 'COMPLETED'")
+    BigDecimal sumIncomingTransfers(@Param("accountId") UUID toId);
 }
