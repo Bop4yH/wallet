@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,4 +18,10 @@ public interface TransferRepository extends JpaRepository<Transfer, UUID> {
 
     @Query("SELECT COUNT(t) FROM Transfer t WHERE t.status = :status")
     long countTransfersByStatus(@Param("status") TransferStatus status);
+
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transfer t " +
+            "WHERE t.fromAccountId = :accountId " +
+            "AND t.status = 'COMPLETED' " +
+            "AND t.createdAt >= :startDate")
+    BigDecimal sumDailyTransfers(@Param("accountId") UUID accountId, @Param("startDate") OffsetDateTime startDate);
 }

@@ -1,5 +1,7 @@
 package com.example.wallet.common;
 
+import java.math.BigDecimal;
+
 public final class MoneyConstants {
     private MoneyConstants() {
     }
@@ -13,4 +15,6 @@ public final class MoneyConstants {
     public static final int SCALE = 2;
 
     public static final int MAX_DIGITS = 17;
+
+    public static final BigDecimal DAILY_TRANSFER_LIMIT = new BigDecimal("500000");
 }

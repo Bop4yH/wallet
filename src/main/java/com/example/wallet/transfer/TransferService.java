@@ -2,6 +2,7 @@ package com.example.wallet.transfer;
 
 import com.example.wallet.account.Account;
 import com.example.wallet.account.AccountRepository;
+import com.example.wallet.common.MoneyConstants;
 import com.example.wallet.transfer.dto.CountResponse;
 import com.example.wallet.transfer.dto.TransferByNamesRequest;
 import com.example.wallet.transfer.dto.TransferRequest;
@@ -16,6 +17,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 /**
@@ -102,7 +104,7 @@ public class TransferService {
         ));
         UUID fromId = t.getFromAccountId();
         UUID toId = t.getToAccountId();
-        if (t.getStatus()==TransferStatus.CANCELLED) {
+        if (t.getStatus() == TransferStatus.CANCELLED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "transfer already cancelled");
         }
         if (t.getCreatedAt().plusMinutes(5).isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
@@ -123,12 +125,14 @@ public class TransferService {
                         HttpStatus.BAD_REQUEST, "account already not exists"
                 ));
 
-        Account to = firstAcc.getId().equals(toId)? firstAcc:secondAcc;
-        Account from = firstAcc.getId().equals(fromId)? firstAcc:secondAcc;
+        Account to = firstAcc.getId().equals(toId) ? firstAcc : secondAcc;
+        Account from = firstAcc.getId().equals(fromId) ? firstAcc : secondAcc;
 
         if (to.getBalance().compareTo(t.getAmount()) < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Cannot cancel: recipient has insufficient funds");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Cannot cancel: recipient has insufficient funds"
+            );
         }
         to.setBalance(to.getBalance().subtract(t.getAmount()));
         from.setBalance(from.getBalance().add(t.getAmount()));
@@ -160,7 +164,7 @@ public class TransferService {
         if (!from.getCurrency().equalsIgnoreCase(to.getCurrency())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "currency mismatch");
         }
-
+        validateDailyLimit(from, normalized);
         from.setBalance(from.getBalance().subtract(normalized));
         to.setBalance(to.getBalance().add(normalized));
 
@@ -177,5 +181,25 @@ public class TransferService {
                 t.getId(), t.getFromAccountId(), t.getToAccountId(),
                 t.getAmount(), t.getStatus(), t.getCreatedAt()
         );
+    }
+
+    private void validateDailyLimit(Account account, BigDecimal transferAmount) {
+        OffsetDateTime startOfDay = OffsetDateTime.now(ZoneOffset.UTC)
+                .truncatedTo(ChronoUnit.DAYS);
+
+        BigDecimal todayTotal = transferRepo.sumDailyTransfers(
+                account.getId(), startOfDay);
+
+        BigDecimal newTotal = todayTotal.add(transferAmount);
+
+        if (newTotal.compareTo(MoneyConstants.DAILY_TRANSFER_LIMIT) > 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    String.format(
+                            "Daily transfer limit exceeded: %.2f / %.2f",
+                            newTotal, MoneyConstants.DAILY_TRANSFER_LIMIT
+                    )
+            );
+        }
     }
 }
