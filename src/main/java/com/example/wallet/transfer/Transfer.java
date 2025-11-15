@@ -1,5 +1,6 @@
 package com.example.wallet.transfer;
 
+import com.example.wallet.common.MoneyConstants;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -23,8 +24,10 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "transfers")
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class Transfer {
 
@@ -39,7 +42,7 @@ public class Transfer {
     @Column(name = "to_account_id", nullable = false, columnDefinition = "uuid")
     private UUID toAccountId;
 
-    @Column(name = "amount", nullable = false, precision = 19, scale = 2)
+    @Column(name = "amount", nullable = false, precision = MoneyConstants.PRECISION, scale = MoneyConstants.SCALE)
     private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
@@ -49,10 +52,14 @@ public class Transfer {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    @Column(name = "fee", nullable = false, precision = MoneyConstants.PRECISION, scale = MoneyConstants.SCALE)
+    private BigDecimal fee;
+
     @PrePersist
     void prePersist() {
-        if (amount != null) amount = amount.setScale(2, RoundingMode.HALF_UP);
+        if (amount != null) amount = amount.setScale(MoneyConstants.SCALE, RoundingMode.HALF_UP);
         if (createdAt == null) createdAt = OffsetDateTime.now(ZoneOffset.UTC);
         if (status == null) status = TransferStatus.COMPLETED;
+        if (fee == null) fee = BigDecimal.ZERO.setScale(MoneyConstants.SCALE, RoundingMode.HALF_UP);
     }
 }

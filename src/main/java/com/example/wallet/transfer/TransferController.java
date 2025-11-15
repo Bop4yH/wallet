@@ -48,7 +48,7 @@ public class TransferController {
     }
 
     @GetMapping("/count")
-    public CountResponse count(){
+    public CountResponse count() {
         return service.count();
     }
 }

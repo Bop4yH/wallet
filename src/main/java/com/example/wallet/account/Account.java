@@ -1,6 +1,7 @@
 package com.example.wallet.account;
 
 
+import com.example.wallet.common.MoneyConstants;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -39,6 +40,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class Account {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(columnDefinition = "uuid")
@@ -47,7 +49,7 @@ public class Account {
     @Column(name = "owner_name", nullable = false, length = 100)
     private String ownerName;
 
-    @Column(name = "balance", nullable = false, precision = 19, scale = 2)
+    @Column(name = "balance", nullable = false, precision = MoneyConstants.PRECISION, scale = MoneyConstants.SCALE)
     private BigDecimal balance;
 
     @Column(name = "currency", nullable = false, length = 3)
@@ -59,7 +61,7 @@ public class Account {
     @PrePersist
     void prePersist() {
         if (currency != null) currency = currency.toUpperCase();
-        if (balance == null) balance = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        if (balance == null) balance = BigDecimal.ZERO.setScale(MoneyConstants.SCALE, RoundingMode.HALF_UP);
         if (createdAt == null) createdAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 }

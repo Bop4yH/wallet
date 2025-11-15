@@ -85,8 +85,8 @@ public class AccountController {
     }
 
     @PostMapping(value = "/{id}/withdraw", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public AccountResponse withdraw(@PathVariable UUID id, @Valid @RequestBody WithdrawRequest req){
-        return service.withdraw(id,req.getAmount());
+    public AccountResponse withdraw(@PathVariable UUID id, @Valid @RequestBody WithdrawRequest req) {
+        return service.withdraw(id, req.getAmount());
     }
 
     @DeleteMapping("/{id}")

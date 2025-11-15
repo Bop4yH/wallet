@@ -10,9 +10,14 @@ import java.util.UUID;
 @Data
 @AllArgsConstructor
 public class AccountResponse {
+
     private UUID id;
+
     private String ownerName;
+
     private String currency;
+
     private BigDecimal balance;
+
     private OffsetDateTime createdAt;
 }

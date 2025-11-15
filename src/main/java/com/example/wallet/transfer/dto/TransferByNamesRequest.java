@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 
 @Data
 public class TransferByNamesRequest {
+
     @NotBlank
     private String fromName;
 
@@ -24,6 +25,6 @@ public class TransferByNamesRequest {
 
     @NotNull
     @DecimalMin(value = MoneyConstants.MIN_AMOUNT, message = MoneyConstants.MIN_AMOUNT_MESSAGE)
-    @Digits(integer = MoneyConstants.PRECISION, fraction = MoneyConstants.SCALE)
+    @Digits(integer = MoneyConstants.MAX_DIGITS, fraction = MoneyConstants.SCALE)
     private BigDecimal amount;
 }

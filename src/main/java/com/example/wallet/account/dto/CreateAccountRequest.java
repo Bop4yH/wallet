@@ -7,6 +7,7 @@ import lombok.Data;
 
 @Data
 public class CreateAccountRequest {
+
     @NotBlank
     @Size(max = 100)
     private String ownerName;

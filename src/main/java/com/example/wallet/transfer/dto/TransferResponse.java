@@ -11,10 +11,18 @@ import java.util.UUID;
 @Data
 @AllArgsConstructor
 public class TransferResponse {
+
     private UUID id;
+
     private UUID fromAccountId;
+
     private UUID toAccountId;
+
     private BigDecimal amount;
+
     private TransferStatus status;
+
     private OffsetDateTime createdAt;
+
+    private BigDecimal fee;
 }

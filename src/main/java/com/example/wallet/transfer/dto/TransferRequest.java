@@ -11,6 +11,7 @@ import java.util.UUID;
 
 @Data
 public class TransferRequest {
+
     @NotNull
     private UUID fromAccountId;
 
@@ -19,6 +20,6 @@ public class TransferRequest {
 
     @NotNull
     @DecimalMin(value = MoneyConstants.MIN_AMOUNT, message = MoneyConstants.MIN_AMOUNT_MESSAGE)
-    @Digits(integer = MoneyConstants.PRECISION, fraction = MoneyConstants.SCALE)
+    @Digits(integer = MoneyConstants.MAX_DIGITS, fraction = MoneyConstants.SCALE)
     private BigDecimal amount;
 }

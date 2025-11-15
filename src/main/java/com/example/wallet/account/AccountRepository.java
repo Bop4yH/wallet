@@ -26,6 +26,8 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM Account a WHERE LOWER(a.ownerName) = LOWER(:name) AND a.currency = :currency")
-    Optional<Account> findByNameAndCurrencyForUpdate(@Param("name") String name,
-                                                     @Param("currency") String currency);
+    Optional<Account> findByNameAndCurrencyForUpdate(
+            @Param("name") String name,
+            @Param("currency") String currency
+    );
 }

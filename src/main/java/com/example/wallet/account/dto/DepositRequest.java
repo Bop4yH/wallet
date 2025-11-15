@@ -13,8 +13,8 @@ public class DepositRequest {
 
     @DecimalMin(value = MoneyConstants.MIN_AMOUNT, message = MoneyConstants.MIN_AMOUNT_MESSAGE)
     @Digits(integer = MoneyConstants.MAX_DIGITS,
-        fraction = MoneyConstants.SCALE,
-        message = "max 2 fraction digits")
+            fraction = MoneyConstants.SCALE,
+            message = "max " + MoneyConstants.SCALE + " fraction digits")
     @NotNull
     private BigDecimal amount;
 }

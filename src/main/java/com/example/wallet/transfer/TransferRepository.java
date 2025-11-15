@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface TransferRepository extends JpaRepository<Transfer, UUID> {
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM Transfer t WHERE t.id = :id")
     Optional<Transfer> findByIdForUpdate(@Param("id") UUID id);
@@ -31,7 +32,7 @@ public interface TransferRepository extends JpaRepository<Transfer, UUID> {
     @Query("SELECT COUNT(t) FROM Transfer t WHERE t.status = 'COMPLETED' AND t.toAccountId = :accountId")
     long countIncomingTransfersById(@Param("accountId") UUID toId);
 
-    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transfer t " +
+    @Query("SELECT COALESCE(SUM(t.amount + t.fee), 0) FROM Transfer t " +
             "WHERE t.fromAccountId = :accountId " +
             "AND t.status = 'COMPLETED'")
     BigDecimal sumOutgoingTransfers(@Param("accountId") UUID fromId);

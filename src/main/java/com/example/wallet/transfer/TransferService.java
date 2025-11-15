@@ -93,7 +93,7 @@ public class TransferService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transfer not found"));
         return new TransferResponse(
                 t.getId(), t.getFromAccountId(), t.getToAccountId(),
-                t.getAmount(), t.getStatus(), t.getCreatedAt()
+                t.getAmount(), t.getStatus(), t.getCreatedAt(), t.getFee()
         );
     }
 
@@ -135,11 +135,11 @@ public class TransferService {
             );
         }
         to.setBalance(to.getBalance().subtract(t.getAmount()));
-        from.setBalance(from.getBalance().add(t.getAmount()));
+        from.setBalance(from.getBalance().add(t.getAmount().add(t.getFee())));
         t.setStatus(TransferStatus.CANCELLED);
         return new TransferResponse(
                 t.getId(), t.getFromAccountId(), t.getToAccountId(),
-                t.getAmount(), t.getStatus(), t.getCreatedAt()
+                t.getAmount(), t.getStatus(), t.getCreatedAt(), t.getFee()
         );
     }
 
@@ -152,12 +152,16 @@ public class TransferService {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "amount must be > 0");
         }
-        BigDecimal normalized = amount.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal normalized = amount.setScale(MoneyConstants.SCALE, RoundingMode.HALF_UP);
+        BigDecimal fee = normalized.multiply(MoneyConstants.TRANSFER_FEE_PERCENT)
+                .setScale(MoneyConstants.SCALE, RoundingMode.HALF_UP);
+        fee = fee.max(MoneyConstants.MIN_FEE);
+        BigDecimal amountWithFee = normalized.add(fee);
         if (from.getId().equals(to.getId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot transfer to same account");
         }
 
-        if (from.getBalance().compareTo(normalized) < 0) {
+        if (from.getBalance().compareTo(amountWithFee) < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient funds");
         }
 
@@ -165,7 +169,8 @@ public class TransferService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "currency mismatch");
         }
         validateDailyLimit(from, normalized);
-        from.setBalance(from.getBalance().subtract(normalized));
+
+        from.setBalance(from.getBalance().subtract(amountWithFee));
         to.setBalance(to.getBalance().add(normalized));
 
         Transfer t = Transfer.builder()
@@ -173,13 +178,14 @@ public class TransferService {
                 .toAccountId(to.getId())
                 .amount(normalized)
                 .status(TransferStatus.COMPLETED)
+                .fee(fee)
                 .build();
 
         t = transferRepo.save(t);
 
         return new TransferResponse(
                 t.getId(), t.getFromAccountId(), t.getToAccountId(),
-                t.getAmount(), t.getStatus(), t.getCreatedAt()
+                t.getAmount(), t.getStatus(), t.getCreatedAt(), t.getFee()
         );
     }
 

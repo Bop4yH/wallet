@@ -3,6 +3,7 @@ package com.example.wallet.account;
 import com.example.wallet.account.dto.AccountResponse;
 import com.example.wallet.account.dto.AccountStatisticsResponse;
 import com.example.wallet.account.dto.BalanceResponse;
+import com.example.wallet.common.MoneyConstants;
 import com.example.wallet.transfer.TransferRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -59,7 +60,7 @@ public class AccountService {
      * Пополняет баланс счёта.
      *
      * @param id     идентификатор счёта
-     * @param amount сумма пополнения (будет округлена до 2 знаков)
+     * @param amount сумма пополнения (будет округлена)
      * @return обновлённая информация о счёте
      * @throws ResponseStatusException если счёт не найден
      */
@@ -68,7 +69,7 @@ public class AccountService {
         Account a = accountRepo.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND));
 
-        BigDecimal normalized = amount.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal normalized = amount.setScale(MoneyConstants.SCALE, RoundingMode.HALF_UP);
         a.setBalance(a.getBalance().add(normalized));
 
         return toResponse(a);
@@ -89,7 +90,7 @@ public class AccountService {
         Account account = accountRepo.findByNameAndCurrencyForUpdate(ownerName, currency.toUpperCase())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND));
 
-        BigDecimal normalized = amount.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal normalized = amount.setScale(MoneyConstants.SCALE, RoundingMode.HALF_UP);
         account.setBalance(account.getBalance().add(normalized));
 
         return toResponse(account);

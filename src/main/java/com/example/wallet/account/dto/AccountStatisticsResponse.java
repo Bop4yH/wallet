@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 @Data
 @AllArgsConstructor
 public class AccountStatisticsResponse {
+
     @NotNull
     BigDecimal currentBalance;
 
