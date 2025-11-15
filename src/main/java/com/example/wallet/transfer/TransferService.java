@@ -1,6 +1,7 @@
 package com.example.wallet.transfer;
 
 import com.example.wallet.account.Account;
+import com.example.wallet.account.AccountLockingService;
 import com.example.wallet.account.AccountRepository;
 import com.example.wallet.common.MoneyConstants;
 import com.example.wallet.transfer.dto.CountResponse;
@@ -32,6 +33,8 @@ public class TransferService {
 
     private final TransferRepository transferRepo;
 
+    private final AccountLockingService accountLockingService;
+
     /**
      * Выполняет перевод между счетами по их ID.
      * <p>
@@ -44,48 +47,21 @@ public class TransferService {
      */
     @Transactional
     public TransferResponse transfer(TransferRequest req) {
-        UUID fromId = req.getFromAccountId();
-        UUID toId = req.getToAccountId();
-        if (fromId.equals(toId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from and to must differ");
-        }
-        int comparison = fromId.compareTo(toId);
-        UUID first = comparison < 0 ? fromId : toId;
-        UUID second = comparison < 0 ? toId : fromId;
-
-        Account firstAcc = accountRepo.findByIdForUpdate(first)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
-        Account secondAcc = accountRepo.findByIdForUpdate(second)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
-
-        Account from = firstAcc.getId().equals(fromId) ? firstAcc : secondAcc;
-        Account to = firstAcc.getId().equals(toId) ? firstAcc : secondAcc;
-
-        return transferByAccounts(from, to, req.getAmount());
+        AccountLockingService.AccountPair accounts = accountLockingService.lockTwoAccounts(
+                req.getFromAccountId(),
+                req.getToAccountId()
+        );
+        return transferByAccounts(accounts.from(), accounts.to(), req.getAmount());
     }
 
     @Transactional
     public TransferResponse transferByNames(TransferByNamesRequest req) {
-        String currency = req.getCurrency().toUpperCase();
-        boolean isFromNameFirst = req.getFromName().compareToIgnoreCase(req.getToName()) < 0;
-        String firstName = isFromNameFirst ? req.getFromName() : req.getToName();
-        String secondName = isFromNameFirst ? req.getToName() : req.getFromName();
-
-        Account firstAcc = accountRepo.findByNameAndCurrencyForUpdate(firstName, currency)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Account not found: " + firstName
-                ));
-
-        Account secondAcc = accountRepo.findByNameAndCurrencyForUpdate(secondName, currency)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Account not found: " + secondName
-                ));
-
-        Account from = isFromNameFirst ? firstAcc : secondAcc;
-        Account to = isFromNameFirst ? secondAcc : firstAcc;
-        return transferByAccounts(from, to, req.getAmount());
+        AccountLockingService.AccountPair accounts = accountLockingService.lockTwoAccountsByName(
+                req.getFromName(),
+                req.getToName(),
+                req.getCurrency()
+        );
+        return transferByAccounts(accounts.from(), accounts.to(), req.getAmount());
     }
 
     public TransferResponse get(UUID id) {
@@ -99,11 +75,9 @@ public class TransferService {
 
     @Transactional
     public TransferResponse cancel(UUID id) {
-        Transfer t = transferRepo.findByIdForUpdate(id).orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.BAD_REQUEST, "no such transfer"
-        ));
-        UUID fromId = t.getFromAccountId();
-        UUID toId = t.getToAccountId();
+        Transfer t = transferRepo.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "no such transfer"));
+
         if (t.getStatus() == TransferStatus.CANCELLED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "transfer already cancelled");
         }
@@ -111,32 +85,22 @@ public class TransferService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "5 minutes passed, can't cancel");
         }
 
+        AccountLockingService.AccountPair accounts = accountLockingService.lockTwoAccounts(
+                t.getFromAccountId(),
+                t.getToAccountId()
+        );
 
-        int comparison = fromId.compareTo(toId);
-        UUID first = comparison < 0 ? fromId : toId;
-        UUID second = comparison < 0 ? toId : fromId;
-
-        Account firstAcc =
-                accountRepo.findByIdForUpdate(first).orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST, "account already not exists"
-                ));
-        Account secondAcc =
-                accountRepo.findByIdForUpdate(second).orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST, "account already not exists"
-                ));
-
-        Account to = firstAcc.getId().equals(toId) ? firstAcc : secondAcc;
-        Account from = firstAcc.getId().equals(fromId) ? firstAcc : secondAcc;
-
-        if (to.getBalance().compareTo(t.getAmount()) < 0) {
+        if (accounts.to().getBalance().compareTo(t.getAmount()) < 0) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Cannot cancel: recipient has insufficient funds"
             );
         }
-        to.setBalance(to.getBalance().subtract(t.getAmount()));
-        from.setBalance(from.getBalance().add(t.getAmount().add(t.getFee())));
+
+        accounts.to().setBalance(accounts.to().getBalance().subtract(t.getAmount()));
+        accounts.from().setBalance(accounts.from().getBalance().add(t.getAmount().add(t.getFee())));
         t.setStatus(TransferStatus.CANCELLED);
+
         return new TransferResponse(
                 t.getId(), t.getFromAccountId(), t.getToAccountId(),
                 t.getAmount(), t.getStatus(), t.getCreatedAt(), t.getFee()
