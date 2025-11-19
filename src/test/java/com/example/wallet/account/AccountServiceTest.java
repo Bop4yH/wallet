@@ -223,5 +223,33 @@ class AccountServiceTest {
         assertNotNull(ex.getReason());
     }
 
+    // ==================== LIST ====================
 
+    @Test
+    void list_returnsAllAccounts() {
+        List<Account> accounts = List.of(
+                savedAccount("John", "USD", 0),
+                savedAccount("Jane", "EUR", 0)
+        );
+        when(accountRepo.findAll()).thenReturn(accounts);
+
+        List<AccountResponse> response = accountService.list();
+
+        assertEquals(2, response.size());
+        assertEquals("John", response.get(0).getOwnerName());
+        assertEquals("Jane", response.get(1).getOwnerName());
+    }
+
+    @Test
+    void list_returnsEmptyList() {
+        when(accountRepo.findAll()).thenReturn(List.of());
+
+        List<AccountResponse> response = accountService.list();
+
+        assertNotNull(response);
+        assertTrue(response.isEmpty());
+        assertEquals(0, response.size());
+    }
+
+    
 }
