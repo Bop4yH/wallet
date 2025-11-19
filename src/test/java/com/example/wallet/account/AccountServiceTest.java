@@ -156,5 +156,31 @@ class AccountServiceTest {
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
         assertNotNull(ex.getReason());
     }
+// ==================== GET BALANCE ====================
+
+    @Test
+    void getBalance_success() {
+        Account acc = savedAccount("John", "EUR", 250);
+        when(accountRepo.findById(acc.getId())).thenReturn(Optional.of(acc));
+
+        BalanceResponse response = accountService.getBalance(acc.getId());
+
+        assertEquals(money(250), response.getBalance());
+        assertEquals("EUR", response.getCurrency());
+    }
+
+    @Test
+    void getBalance_notFound() {
+        when(accountRepo.findById(DEFAULT_ACCOUNT_ID)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> accountService.getBalance(DEFAULT_ACCOUNT_ID)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertNotNull(ex.getReason());
+    }
+
 
 }
