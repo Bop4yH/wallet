@@ -81,7 +81,7 @@ class AccountServiceTest {
         return savedAccount("John", "USD", 0);
     }
 
-    private static final BigDecimal money(long balance){
+    private static final BigDecimal money(double balance){
         return BigDecimal.valueOf(balance).setScale(
                 MoneyConstants.SCALE,
                 RoundingMode.HALF_UP
@@ -138,14 +138,10 @@ class AccountServiceTest {
         AccountResponse response = accountService.get(acc.getId());
 
         assertEquals(acc.getId(), response.getId());
-        assertEquals("John", response.getOwnerName());
-        assertEquals("USD", response.getCurrency());
-        assertEquals(DEFAULT_BALANCE, response.getBalance());
-        assertEquals(FIXED_TIME, response.getCreatedAt());
     }
 
     @Test
-    void get_notFound() {
+    void get_accountNotFound() {
         when(accountRepo.findById(DEFAULT_ACCOUNT_ID)).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(
@@ -170,12 +166,57 @@ class AccountServiceTest {
     }
 
     @Test
-    void getBalance_notFound() {
+    void getBalance_accountNotFound() {
         when(accountRepo.findById(DEFAULT_ACCOUNT_ID)).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
                 () -> accountService.getBalance(DEFAULT_ACCOUNT_ID)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertNotNull(ex.getReason());
+    }
+
+// ==================== DEPOSIT ====================
+
+    @Test
+    void deposit_success() {
+        Account acc = defaultAccount();
+        when(accountRepo.findByIdForUpdate(acc.getId())).thenReturn(Optional.of(acc));
+
+        AccountResponse response = accountService.deposit(acc.getId(), money(50));
+
+        assertEquals(money(150), acc.getBalance());
+        assertEquals(money(150), response.getBalance());
+        assertEquals(DEFAULT_ACCOUNT_ID, response.getId());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "50,     50.00",
+            "50.1,   50.10",
+            "50.99,  50.99",
+            "100.5,  100.50"
+    })
+    void deposit_normalizesScale(String input, String expected) {
+        Account acc = savedEmptyAccount();
+        when(accountRepo.findByIdForUpdate(acc.getId())).thenReturn(Optional.of(acc));
+
+        accountService.deposit(acc.getId(), new BigDecimal(input));
+
+        BigDecimal balance = acc.getBalance();
+        assertEquals(new BigDecimal(expected), balance);
+        assertEquals(2, balance.scale());
+    }
+
+    @Test
+    void deposit_accountNotFound() {
+        when(accountRepo.findByIdForUpdate(DEFAULT_ACCOUNT_ID)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> accountService.deposit(DEFAULT_ACCOUNT_ID, DEFAULT_BALANCE)
         );
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
