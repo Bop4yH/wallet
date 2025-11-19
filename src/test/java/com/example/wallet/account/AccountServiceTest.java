@@ -1,10 +1,14 @@
 package com.example.wallet.account;
 
 import com.example.wallet.account.dto.AccountResponse;
+import com.example.wallet.account.dto.AccountStatisticsResponse;
+import com.example.wallet.account.dto.BalanceResponse;
 import com.example.wallet.common.MoneyConstants;
 import com.example.wallet.transfer.TransferRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
@@ -17,13 +21,18 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -119,5 +128,33 @@ class AccountServiceTest {
                 .contains("already exists", "John", "USD");
     }
 
+    // ==================== GET ====================
+
+    @Test
+    void get_found() {
+        Account acc = defaultAccount();
+        when(accountRepo.findById(acc.getId())).thenReturn(Optional.of(acc));
+
+        AccountResponse response = accountService.get(acc.getId());
+
+        assertEquals(acc.getId(), response.getId());
+        assertEquals("John", response.getOwnerName());
+        assertEquals("USD", response.getCurrency());
+        assertEquals(DEFAULT_BALANCE, response.getBalance());
+        assertEquals(FIXED_TIME, response.getCreatedAt());
+    }
+
+    @Test
+    void get_notFound() {
+        when(accountRepo.findById(DEFAULT_ACCOUNT_ID)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> accountService.get(DEFAULT_ACCOUNT_ID)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertNotNull(ex.getReason());
+    }
 
 }
