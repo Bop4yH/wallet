@@ -279,10 +279,10 @@ class AccountServiceTest {
     void depositByName_notFound() {
         when(accountRepo.findByNameAndCurrencyForUpdate("John", "USD"))
                 .thenReturn(Optional.empty());
-
+        BigDecimal dep = money(50);
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
-                () -> accountService.depositByName("John", "USD", new BigDecimal("50.00"))
+                () -> accountService.depositByName("John", "USD", dep)
         );
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
         assertNotNull(ex.getReason());
@@ -304,11 +304,11 @@ class AccountServiceTest {
     void withdraw_insufficientFunds() {
         Account acc = savedAccount("John", "USD", 50);
         BigDecimal amount = money(100);
-        when(accountRepo.findByIdForUpdate(acc.getId())).thenReturn(Optional.of(acc));
-
+        UUID id = acc.getId();
+        when(accountRepo.findByIdForUpdate(id)).thenReturn(Optional.of(acc));
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
-                () -> accountService.withdraw(acc.getId(), amount)
+                () -> accountService.withdraw(id, amount)
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
@@ -330,11 +330,13 @@ class AccountServiceTest {
     @Test
     void delete_nonZeroBalance() {
         Account acc = defaultAccount();
-        when(accountRepo.findByIdForUpdate(acc.getId())).thenReturn(Optional.of(acc));
+        UUID id = acc.getId();
+
+        when(accountRepo.findByIdForUpdate(id)).thenReturn(Optional.of(acc));
 
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
-                () -> accountService.delete(acc.getId())
+                () -> accountService.delete(id)
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
