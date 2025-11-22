@@ -5,8 +5,6 @@ import com.example.wallet.account.AccountLockingService;
 import com.example.wallet.account.AccountRepository;
 import com.example.wallet.common.MoneyConstants;
 import com.example.wallet.transfer.dto.CountResponse;
-import com.example.wallet.transfer.dto.TransferByNamesRequest;
-import com.example.wallet.transfer.dto.TransferRequest;
 import com.example.wallet.transfer.dto.TransferResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -41,27 +39,29 @@ public class TransferService {
      * Использует пессимистичные блокировки для предотвращения race conditions
      * и детерминированный порядок блокировки для предотвращения deadlock.
      *
-     * @param req запрос с ID счетов и суммой перевода
+     * @param fromId ID счета списания
+     * @param toId   ID счета пополнения
+     * @param amount сумма перевода
      * @return информация о выполненном переводе
      * @throws ResponseStatusException если счета не найдены, недостаточно средств или валюты не совпадают
      */
     @Transactional
-    public TransferResponse transfer(TransferRequest req) {
+    public TransferResponse transfer(UUID fromId, UUID toId, BigDecimal amount) {
         AccountLockingService.AccountPair accounts = accountLockingService.lockTwoAccounts(
-                req.getFromAccountId(),
-                req.getToAccountId()
+                fromId,
+                toId
         );
-        return transferByAccounts(accounts.from(), accounts.to(), req.getAmount());
+        return transferByAccounts(accounts.from(), accounts.to(), amount);
     }
 
     @Transactional
-    public TransferResponse transferByNames(TransferByNamesRequest req) {
+    public TransferResponse transferByNames(String fromName, String toName, String currency, BigDecimal amount) {
         AccountLockingService.AccountPair accounts = accountLockingService.lockTwoAccountsByName(
-                req.getFromName(),
-                req.getToName(),
-                req.getCurrency()
+                fromName,
+                toName,
+                currency
         );
-        return transferByAccounts(accounts.from(), accounts.to(), req.getAmount());
+        return transferByAccounts(accounts.from(), accounts.to(), amount);
     }
 
     public TransferResponse get(UUID id) {

@@ -28,13 +28,22 @@ public class TransferController {
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public TransferResponse create(@Valid @RequestBody TransferRequest req) {
-        return service.transfer(req);
+        return service.transfer(
+                req.getFromAccountId(),
+                req.getToAccountId(),
+                req.getAmount()
+        );
     }
 
     @PostMapping(value = "/by-names", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public TransferResponse createByNames(@Valid @RequestBody TransferByNamesRequest req) {
-        return service.transferByNames(req);
+        return service.transferByNames(
+                req.getFromName(),
+                req.getToName(),
+                req.getCurrency(),
+                req.getAmount()
+        );
     }
 
     @GetMapping("/{id}")

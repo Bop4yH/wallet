@@ -3,7 +3,6 @@ package com.example.wallet.account;
 import com.example.wallet.account.dto.AccountResponse;
 import com.example.wallet.account.dto.AccountStatisticsResponse;
 import com.example.wallet.account.dto.BalanceResponse;
-import com.example.wallet.common.MoneyConstants;
 import com.example.wallet.transfer.TransferRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,12 +18,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.example.wallet.utils.TestUtils.ACCOUNT_ID_1;
+import static com.example.wallet.utils.TestUtils.ACCOUNT_ID_2;
+import static com.example.wallet.utils.TestUtils.DEFAULT_ACCOUNT_ID;
+import static com.example.wallet.utils.TestUtils.FIXED_TIME;
+import static com.example.wallet.utils.TestUtils.makeAccount;
+import static com.example.wallet.utils.TestUtils.money;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -38,14 +41,6 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AccountServiceTest {
-    private static final UUID DEFAULT_ACCOUNT_ID = new UUID(69, 69);
-
-    private static final BigDecimal DEFAULT_BALANCE = money(100);
-
-    private static final BigDecimal EMPTY_BALANCE = money(0);
-
-    private static final OffsetDateTime FIXED_TIME =
-            OffsetDateTime.parse("2025-01-01T12:00:00Z");
 
     @Mock
     private AccountRepository accountRepo;
@@ -59,38 +54,11 @@ class AccountServiceTest {
     @Captor
     private ArgumentCaptor<Account> accountCaptor;
 
-    // ==================== HELPER METHODS ====================
-
-    private Account savedAccount(String owner, String currency, long balance) {
-        return Account.builder()
-                .id(DEFAULT_ACCOUNT_ID)
-                .ownerName(owner)
-                .currency(currency)
-                .balance(money(balance))
-                .createdAt(FIXED_TIME)
-                .build();
-    }
-
-    private Account defaultAccount() {
-        return savedAccount("John", "USD", 100);
-    }
-
-    private Account savedEmptyAccount() {
-        return savedAccount("John", "USD", 0);
-    }
-
-    private static final BigDecimal money(double balance) {
-        return BigDecimal.valueOf(balance).setScale(
-                MoneyConstants.SCALE,
-                RoundingMode.HALF_UP
-        );
-    }
-
     // ==================== CREATE ====================
 
     @Test
     void create_success() {
-        Account saved = savedEmptyAccount();
+        Account saved = makeAccount(DEFAULT_ACCOUNT_ID, "John", "USD", 0);
         when(accountRepo.save(any())).thenReturn(saved);
 
         AccountResponse response = accountService.create("John", "USD");
@@ -98,7 +66,7 @@ class AccountServiceTest {
         verify(accountRepo).save(accountCaptor.capture());
         assertEquals("John", response.getOwnerName());
         assertEquals("USD", response.getCurrency());
-        assertEquals(EMPTY_BALANCE, response.getBalance());
+        assertEquals(money(0), response.getBalance());
         assertEquals(DEFAULT_ACCOUNT_ID, response.getId());
         assertEquals(FIXED_TIME, response.getCreatedAt());
 
@@ -112,8 +80,7 @@ class AccountServiceTest {
 
     @Test
     void create_duplicateAccount() {
-        when(accountRepo.save(any()))
-                .thenThrow(new DataIntegrityViolationException("😎😎😎"));
+        when(accountRepo.save(any())).thenThrow(new DataIntegrityViolationException("😎😎😎"));
 
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
@@ -122,15 +89,14 @@ class AccountServiceTest {
 
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
 
-        assertThat(ex.getReason())
-                .contains("already exists", "John", "USD");
+        assertThat(ex.getReason()).contains("already exists", "John", "USD");
     }
 
     // ==================== GET ====================
 
     @Test
     void get_found() {
-        Account acc = defaultAccount();
+        Account acc = makeAccount(DEFAULT_ACCOUNT_ID, "John", "USD", 100);
         when(accountRepo.findById(acc.getId())).thenReturn(Optional.of(acc));
 
         AccountResponse response = accountService.get(acc.getId());
@@ -150,11 +116,11 @@ class AccountServiceTest {
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
         assertNotNull(ex.getReason());
     }
-// ==================== GET BALANCE ====================
+    // ==================== GET BALANCE ====================
 
     @Test
     void getBalance_success() {
-        Account acc = savedAccount("John", "EUR", 250);
+        Account acc = makeAccount(DEFAULT_ACCOUNT_ID, "John", "EUR", 250);
         when(accountRepo.findById(acc.getId())).thenReturn(Optional.of(acc));
 
         BalanceResponse response = accountService.getBalance(acc.getId());
@@ -163,11 +129,11 @@ class AccountServiceTest {
         assertEquals("EUR", response.getCurrency());
     }
 
-// ==================== DEPOSIT ====================
+    // ==================== DEPOSIT ====================
 
     @Test
     void deposit_success() {
-        Account acc = defaultAccount();
+        Account acc = makeAccount(DEFAULT_ACCOUNT_ID, "John", "USD", 100);
         when(accountRepo.findByIdForUpdate(acc.getId())).thenReturn(Optional.of(acc));
 
         AccountResponse response = accountService.deposit(acc.getId(), money(50));
@@ -185,7 +151,7 @@ class AccountServiceTest {
             "100.5,  100.50"
     })
     void deposit_normalizesScale(String input, String expected) {
-        Account acc = savedEmptyAccount();
+        Account acc = makeAccount(DEFAULT_ACCOUNT_ID, "John", "USD", 0);
         when(accountRepo.findByIdForUpdate(acc.getId())).thenReturn(Optional.of(acc));
 
         accountService.deposit(acc.getId(), new BigDecimal(input));
@@ -198,10 +164,11 @@ class AccountServiceTest {
     @Test
     void deposit_accountNotFound() {
         when(accountRepo.findByIdForUpdate(DEFAULT_ACCOUNT_ID)).thenReturn(Optional.empty());
+        BigDecimal amount = money(100);
 
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
-                () -> accountService.deposit(DEFAULT_ACCOUNT_ID, DEFAULT_BALANCE)
+                () -> accountService.deposit(DEFAULT_ACCOUNT_ID, amount)
         );
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
@@ -213,8 +180,8 @@ class AccountServiceTest {
     @Test
     void list_returnsAllAccounts() {
         List<Account> accounts = List.of(
-                savedAccount("John", "USD", 0),
-                savedAccount("Jane", "EUR", 0)
+                makeAccount(ACCOUNT_ID_1, "John", "USD", 0),
+                makeAccount(ACCOUNT_ID_2, "Jane", "EUR", 0)
         );
         when(accountRepo.findAll()).thenReturn(accounts);
 
@@ -233,16 +200,14 @@ class AccountServiceTest {
 
         assertNotNull(response);
         assertTrue(response.isEmpty());
-        assertEquals(0, response.size());
     }
 
     // ==================== GET BY NAME ====================
 
     @Test
     void getByName_found() {
-        Account acc = savedEmptyAccount();
-        when(accountRepo.findByOwnerNameIgnoreCaseAndCurrency("John", "USD"))
-                .thenReturn(Optional.of(acc));
+        Account acc = makeAccount(DEFAULT_ACCOUNT_ID, "John", "USD", 0);
+        when(accountRepo.findByOwnerNameIgnoreCaseAndCurrency("John", "USD")).thenReturn(Optional.of(acc));
 
         AccountResponse response = accountService.getByName("John", "USD");
 
@@ -251,24 +216,21 @@ class AccountServiceTest {
 
     @Test
     void getByName_notFound() {
-        when(accountRepo.findByOwnerNameIgnoreCaseAndCurrency("John", "USD"))
-                .thenReturn(Optional.empty());
+        when(accountRepo.findByOwnerNameIgnoreCaseAndCurrency("John", "USD")).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
                 () -> accountService.getByName("John", "USD")
         );
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
-        assertNotNull(ex.getReason());
     }
 
     // ==================== DEPOSIT BY NAME ====================
 
     @Test
     void depositByName_success() {
-        Account acc = defaultAccount();
-        when(accountRepo.findByNameAndCurrencyForUpdate("John", "USD"))
-                .thenReturn(Optional.of(acc));
+        Account acc = makeAccount(DEFAULT_ACCOUNT_ID, "John", "USD", 100);
+        when(accountRepo.findByNameAndCurrencyForUpdate("John", "USD")).thenReturn(Optional.of(acc));
 
         accountService.depositByName("John", "USD", money(50));
 
@@ -277,22 +239,21 @@ class AccountServiceTest {
 
     @Test
     void depositByName_notFound() {
-        when(accountRepo.findByNameAndCurrencyForUpdate("John", "USD"))
-                .thenReturn(Optional.empty());
-        BigDecimal dep = money(50);
+        when(accountRepo.findByNameAndCurrencyForUpdate("John", "USD")).thenReturn(Optional.empty());
+        BigDecimal amount = money(50);
+
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
-                () -> accountService.depositByName("John", "USD", dep)
+                () -> accountService.depositByName("John", "USD", amount)
         );
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
-        assertNotNull(ex.getReason());
     }
 
     // ==================== WITHDRAW ====================
 
     @Test
     void withdraw_success() {
-        Account acc = defaultAccount();
+        Account acc = makeAccount(DEFAULT_ACCOUNT_ID, "John", "USD", 100);
         when(accountRepo.findByIdForUpdate(acc.getId())).thenReturn(Optional.of(acc));
 
         accountService.withdraw(acc.getId(), money(30));
@@ -302,7 +263,7 @@ class AccountServiceTest {
 
     @Test
     void withdraw_insufficientFunds() {
-        Account acc = savedAccount("John", "USD", 50);
+        Account acc = makeAccount(DEFAULT_ACCOUNT_ID, "John", "USD", 50);
         BigDecimal amount = money(100);
         UUID id = acc.getId();
         when(accountRepo.findByIdForUpdate(id)).thenReturn(Optional.of(acc));
@@ -319,7 +280,7 @@ class AccountServiceTest {
 
     @Test
     void delete_success() {
-        Account acc = savedEmptyAccount();
+        Account acc = makeAccount(DEFAULT_ACCOUNT_ID, "John", "USD", 0);
         when(accountRepo.findByIdForUpdate(acc.getId())).thenReturn(Optional.of(acc));
 
         accountService.delete(acc.getId());
@@ -329,15 +290,12 @@ class AccountServiceTest {
 
     @Test
     void delete_nonZeroBalance() {
-        Account acc = defaultAccount();
+        Account acc = makeAccount(DEFAULT_ACCOUNT_ID, "John", "USD", 100);
         UUID id = acc.getId();
 
         when(accountRepo.findByIdForUpdate(id)).thenReturn(Optional.of(acc));
 
-        ResponseStatusException ex = assertThrows(
-                ResponseStatusException.class,
-                () -> accountService.delete(id)
-        );
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> accountService.delete(id));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
         assertTrue(ex.getReason().contains("no funds"));
@@ -348,7 +306,7 @@ class AccountServiceTest {
 
     @Test
     void getStatistics_success() {
-        Account acc = savedAccount("John", "USD", 500);
+        Account acc = makeAccount(DEFAULT_ACCOUNT_ID, "John", "USD", 500);
         UUID id = acc.getId();
 
         when(accountRepo.findById(id)).thenReturn(Optional.of(acc));
