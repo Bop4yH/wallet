@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -23,7 +24,10 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
-@Table(name = "transfers")
+@Table(name = "transfers", indexes = {
+        @Index(name = "idx_transfer_from_created", columnList = "from_account_id, created_at"),
+        @Index(name = "idx_transfer_to", columnList = "to_account_id")
+})
 @Getter
 @Setter
 @NoArgsConstructor
