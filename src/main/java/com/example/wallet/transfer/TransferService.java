@@ -14,8 +14,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
@@ -32,6 +32,8 @@ public class TransferService {
     private final TransferRepository transferRepo;
 
     private final AccountLockingService accountLockingService;
+
+    private final Clock clock;
 
     /**
      * Выполняет перевод между счетами по их ID.
@@ -81,7 +83,7 @@ public class TransferService {
         if (t.getStatus() == TransferStatus.CANCELLED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "transfer already cancelled");
         }
-        if (t.getCreatedAt().plusMinutes(5).isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
+        if (t.getCreatedAt().plusMinutes(5).isBefore(OffsetDateTime.now(clock))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "5 minutes passed, can't cancel");
         }
 
@@ -154,7 +156,7 @@ public class TransferService {
     }
 
     private void validateDailyLimit(Account account, BigDecimal transferAmount) {
-        OffsetDateTime startOfDay = OffsetDateTime.now(ZoneOffset.UTC)
+        OffsetDateTime startOfDay = OffsetDateTime.now(clock)
                 .truncatedTo(ChronoUnit.DAYS);
 
         BigDecimal todayTotal = transferRepo.sumDailyTransfers(
