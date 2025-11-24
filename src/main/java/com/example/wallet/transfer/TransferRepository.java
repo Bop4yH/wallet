@@ -41,4 +41,6 @@ public interface TransferRepository extends JpaRepository<Transfer, UUID> {
             "WHERE t.toAccountId = :accountId " +
             "AND t.status = 'COMPLETED'")
     BigDecimal sumIncomingTransfers(@Param("accountId") UUID toId);
+
+    Optional<Transfer> findByIdempotencyKey(UUID idempotencyKey);
 }

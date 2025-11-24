@@ -9,9 +9,13 @@ import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Data
 public class TransferByNamesRequest {
+
+    @NotNull
+    private UUID idempotencyKey;
 
     @NotBlank
     private String fromName;

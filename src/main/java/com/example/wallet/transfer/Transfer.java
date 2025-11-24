@@ -40,6 +40,9 @@ public class Transfer {
     @Column(columnDefinition = "uuid")
     private UUID id;
 
+    @Column(name = "idempotency_key", unique = true)
+    private UUID idempotencyKey;
+
     @Column(name = "from_account_id", nullable = false, columnDefinition = "uuid")
     private UUID fromAccountId;
 

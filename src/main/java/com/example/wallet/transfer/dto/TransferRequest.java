@@ -13,6 +13,9 @@ import java.util.UUID;
 public class TransferRequest {
 
     @NotNull
+    private UUID idempotencyKey;
+
+    @NotNull
     private UUID fromAccountId;
 
     @NotNull

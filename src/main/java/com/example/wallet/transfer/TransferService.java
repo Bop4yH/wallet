@@ -17,6 +17,7 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -48,22 +49,34 @@ public class TransferService {
      * @throws ResponseStatusException если счета не найдены, недостаточно средств или валюты не совпадают
      */
     @Transactional
-    public TransferResponse transfer(UUID fromId, UUID toId, BigDecimal amount) {
+    public TransferResponse transfer(UUID fromId, UUID toId, BigDecimal amount, UUID idempotencyKey) {
+        Optional<Transfer> existing = transferRepo.findByIdempotencyKey(idempotencyKey);
+        if (existing.isPresent()) {
+            return toResponse(existing.get());
+        }
+
         AccountLockingService.AccountPair accounts = accountLockingService.lockTwoAccounts(
                 fromId,
                 toId
         );
-        return transferByAccounts(accounts.from(), accounts.to(), amount);
+
+        return transferByAccounts(accounts.from(), accounts.to(), amount, idempotencyKey);
     }
 
     @Transactional
-    public TransferResponse transferByNames(String fromName, String toName, String currency, BigDecimal amount) {
+    public TransferResponse transferByNames(
+            String fromName, String toName, String currency, BigDecimal amount, UUID idempotencyKey) {
+        Optional<Transfer> existing = transferRepo.findByIdempotencyKey(idempotencyKey);
+        if (existing.isPresent()) {
+            return toResponse(existing.get());
+        }
+
         AccountLockingService.AccountPair accounts = accountLockingService.lockTwoAccountsByName(
                 fromName,
                 toName,
                 currency
         );
-        return transferByAccounts(accounts.from(), accounts.to(), amount);
+        return transferByAccounts(accounts.from(), accounts.to(), amount, idempotencyKey);
     }
 
     public TransferResponse get(UUID id) {
@@ -113,7 +126,12 @@ public class TransferService {
         return new CountResponse(transferRepo.countTransfersByStatus(TransferStatus.COMPLETED));
     }
 
-    private TransferResponse transferByAccounts(Account from, Account to, BigDecimal amount) {
+    private TransferResponse transferByAccounts(Account from, Account to, BigDecimal amount, UUID idempotencyKey) {
+
+        Optional<Transfer> existing = transferRepo.findByIdempotencyKey(idempotencyKey);
+        if (existing.isPresent()) {
+            return toResponse(existing.get());
+        }
 
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "amount must be > 0");
@@ -123,6 +141,7 @@ public class TransferService {
                 .setScale(MoneyConstants.SCALE, RoundingMode.HALF_UP);
         fee = fee.max(MoneyConstants.MIN_FEE);
         BigDecimal amountWithFee = normalized.add(fee);
+
         if (from.getId().equals(to.getId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot transfer to same account");
         }
@@ -140,6 +159,7 @@ public class TransferService {
         to.setBalance(to.getBalance().add(normalized));
 
         Transfer t = Transfer.builder()
+                .idempotencyKey(idempotencyKey)
                 .fromAccountId(from.getId())
                 .toAccountId(to.getId())
                 .amount(normalized)
@@ -149,10 +169,7 @@ public class TransferService {
 
         t = transferRepo.save(t);
 
-        return new TransferResponse(
-                t.getId(), t.getFromAccountId(), t.getToAccountId(),
-                t.getAmount(), t.getStatus(), t.getCreatedAt(), t.getFee()
-        );
+        return toResponse(t);
     }
 
     private void validateDailyLimit(Account account, BigDecimal transferAmount) {
@@ -173,5 +190,17 @@ public class TransferService {
                     )
             );
         }
+    }
+
+    private TransferResponse toResponse(Transfer t) {
+        return new TransferResponse(
+                t.getId(),
+                t.getFromAccountId(),
+                t.getToAccountId(),
+                t.getAmount(),
+                t.getStatus(),
+                t.getCreatedAt(),
+                t.getFee()
+        );
     }
 }

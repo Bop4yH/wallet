@@ -45,6 +45,8 @@ class TransferServiceTest {
 
     private static final UUID DEFAULT_TRANSFER_ID = new UUID(69, 69);
 
+    private static final UUID IDEMPOTENCY_KEY = new UUID(96, 96);
+
     private static final String JANE = "Jane";
 
     private static final String JOHN = "John";
@@ -77,6 +79,7 @@ class TransferServiceTest {
                 .amount(money(amount))
                 .createdAt(FIXED_TIME)
                 .id(DEFAULT_TRANSFER_ID)
+                .idempotencyKey(IDEMPOTENCY_KEY)
                 .fee(money(fee))
                 .status(TransferStatus.COMPLETED)
                 .build();
@@ -107,11 +110,13 @@ class TransferServiceTest {
         BigDecimal expectedToBalance = money(100);
         Transfer preparedTransfer = makeTransfer(100, 1);
 
+        when(transferRepo.findByIdempotencyKey(any())).thenReturn(Optional.empty());
         when(accountLockingService.lockTwoAccounts(ACCOUNT_ID_1, ACCOUNT_ID_2)).thenReturn(accounts);
         when(transferRepo.sumDailyTransfers(any(), any())).thenReturn(ZERO_AMOUNT);
         when(transferRepo.save(transferCaptor.capture())).thenReturn(preparedTransfer);
 
-        TransferResponse response = transferService.transfer(ACCOUNT_ID_1, ACCOUNT_ID_2, transferAmount);
+        TransferResponse response = transferService.transfer(
+                ACCOUNT_ID_1, ACCOUNT_ID_2, transferAmount, IDEMPOTENCY_KEY);
 
         assertEquals(transferAmount, response.getAmount());
         assertEquals(expectedFee, response.getFee());
@@ -128,6 +133,7 @@ class TransferServiceTest {
         assertEquals(transferAmount, captured.getAmount());
         assertEquals(expectedFee, captured.getFee());
         assertEquals(TransferStatus.COMPLETED, captured.getStatus());
+        assertEquals(IDEMPOTENCY_KEY, captured.getIdempotencyKey());
         assertNull(captured.getId());
         assertNull(captured.getCreatedAt());
     }
@@ -140,11 +146,12 @@ class TransferServiceTest {
     void transfer_insufficientFunds(long balance, BigDecimal transferAmount) {
         AccountLockingService.AccountPair accounts = createAccountPair(balance, 0);
 
+        when(transferRepo.findByIdempotencyKey(any())).thenReturn(Optional.empty());
         when(accountLockingService.lockTwoAccounts(ACCOUNT_ID_1, ACCOUNT_ID_2)).thenReturn(accounts);
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> transferService.transfer(ACCOUNT_ID_1, ACCOUNT_ID_2, transferAmount)
+                () -> transferService.transfer(ACCOUNT_ID_1, ACCOUNT_ID_2, transferAmount, IDEMPOTENCY_KEY)
         );
 
         verify(transferRepo, never()).save(any());
@@ -161,11 +168,12 @@ class TransferServiceTest {
         );
         BigDecimal transferAmount = money(100);
 
+        when(transferRepo.findByIdempotencyKey(any())).thenReturn(Optional.empty());
         when(accountLockingService.lockTwoAccounts(ACCOUNT_ID_1, ACCOUNT_ID_1)).thenReturn(accounts);
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> transferService.transfer(ACCOUNT_ID_1, ACCOUNT_ID_1, transferAmount)
+                () -> transferService.transfer(ACCOUNT_ID_1, ACCOUNT_ID_1, transferAmount, IDEMPOTENCY_KEY)
         );
 
         verify(transferRepo, never()).save(any());
@@ -181,13 +189,13 @@ class TransferServiceTest {
             "-100.501"
     }, nullValues = "null")
     void transfer_wrongAmount(BigDecimal amount) {
+        when(transferRepo.findByIdempotencyKey(any())).thenReturn(Optional.empty());
         AccountLockingService.AccountPair accounts = createAccountPair(300, 0);
-
         when(accountLockingService.lockTwoAccounts(ACCOUNT_ID_1, ACCOUNT_ID_2)).thenReturn(accounts);
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> transferService.transfer(ACCOUNT_ID_1, ACCOUNT_ID_2, amount)
+                () -> transferService.transfer(ACCOUNT_ID_1, ACCOUNT_ID_2, amount, IDEMPOTENCY_KEY)
         );
 
         verify(transferRepo, never()).save(any());
@@ -200,11 +208,12 @@ class TransferServiceTest {
         AccountLockingService.AccountPair accounts = createAccountPair(300, 0, USD, RUB);
         BigDecimal transferAmount = money(100);
 
+        when(transferRepo.findByIdempotencyKey(any())).thenReturn(Optional.empty());
         when(accountLockingService.lockTwoAccounts(ACCOUNT_ID_1, ACCOUNT_ID_2)).thenReturn(accounts);
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> transferService.transfer(ACCOUNT_ID_1, ACCOUNT_ID_2, transferAmount)
+                () -> transferService.transfer(ACCOUNT_ID_1, ACCOUNT_ID_2, transferAmount, IDEMPOTENCY_KEY)
         );
 
         verify(transferRepo, never()).save(any());
@@ -222,12 +231,13 @@ class TransferServiceTest {
         AccountLockingService.AccountPair accounts = createAccountPair(9999999, 0);
         BigDecimal expectedTotal = dailyTransferred.add(transferAmount);
 
+        when(transferRepo.findByIdempotencyKey(any())).thenReturn(Optional.empty());
         when(accountLockingService.lockTwoAccounts(ACCOUNT_ID_1, ACCOUNT_ID_2)).thenReturn(accounts);
         when(transferRepo.sumDailyTransfers(eq(ACCOUNT_ID_1), any())).thenReturn(dailyTransferred);
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> transferService.transfer(ACCOUNT_ID_1, ACCOUNT_ID_2, transferAmount)
+                () -> transferService.transfer(ACCOUNT_ID_1, ACCOUNT_ID_2, transferAmount, IDEMPOTENCY_KEY)
         );
 
         verify(transferRepo, never()).save(any());
@@ -260,6 +270,7 @@ class TransferServiceTest {
         AccountLockingService.AccountPair accounts = createAccountPair(balance.doubleValue(), 0);
         BigDecimal expectedToBalance = transferAmount.setScale(2, RoundingMode.HALF_UP);
 
+        when(transferRepo.findByIdempotencyKey(any())).thenReturn(Optional.empty());
         when(accountLockingService.lockTwoAccounts(ACCOUNT_ID_1, ACCOUNT_ID_2)).thenReturn(accounts);
         when(transferRepo.sumDailyTransfers(any(), any())).thenReturn(ZERO_AMOUNT);
         when(transferRepo.save(any())).thenAnswer(invocation -> {
@@ -269,10 +280,26 @@ class TransferServiceTest {
             return transfer;
         });
 
-        transferService.transfer(ACCOUNT_ID_1, ACCOUNT_ID_2, transferAmount);
+        transferService.transfer(ACCOUNT_ID_1, ACCOUNT_ID_2, transferAmount, IDEMPOTENCY_KEY);
 
         assertEquals(expectedFromBalance, accounts.from().getBalance());
         assertEquals(expectedToBalance, accounts.to().getBalance());
+    }
+
+    @Test
+    void transfer_duplicateKey_returnsExisting() {
+        Transfer transfer = makeTransfer(100, 1);
+        when(transferRepo.findByIdempotencyKey(IDEMPOTENCY_KEY)).thenReturn(Optional.of(transfer));
+
+        TransferResponse response = transferService.transfer(ACCOUNT_ID_1, ACCOUNT_ID_2, money(100), IDEMPOTENCY_KEY);
+
+        assertThat(response)
+                .usingRecursiveComparison()
+                .ignoringFields("idempotencyKey")
+                .isEqualTo(transfer);
+
+        verify(accountLockingService, never()).lockTwoAccounts(any(), any());
+        verify(transferRepo, never()).save(any());
     }
 
     @Test
@@ -284,11 +311,12 @@ class TransferServiceTest {
         BigDecimal expectedToBalance = money(100);
         Transfer preparedTransfer = makeTransfer(100, 1);
 
+        when(transferRepo.findByIdempotencyKey(any())).thenReturn(Optional.empty());
         when(transferRepo.save(transferCaptor.capture())).thenReturn(preparedTransfer);
         when(transferRepo.sumDailyTransfers(any(), any())).thenReturn(ZERO_AMOUNT);
         when(accountLockingService.lockTwoAccountsByName(JOHN, JANE, USD)).thenReturn(accounts);
 
-        TransferResponse response = transferService.transferByNames(JOHN, JANE, USD, transferAmount);
+        TransferResponse response = transferService.transferByNames(JOHN, JANE, USD, transferAmount, IDEMPOTENCY_KEY);
 
         assertEquals(transferAmount, response.getAmount());
         assertEquals(expectedFee, response.getFee());
@@ -305,6 +333,7 @@ class TransferServiceTest {
         assertEquals(transferAmount, captured.getAmount());
         assertEquals(expectedFee, captured.getFee());
         assertEquals(TransferStatus.COMPLETED, captured.getStatus());
+        assertEquals(IDEMPOTENCY_KEY, captured.getIdempotencyKey());
         assertNull(captured.getId());
         assertNull(captured.getCreatedAt());
     }
@@ -406,10 +435,10 @@ class TransferServiceTest {
 
     @Test
     void cancel_insufficientFunds() {
-        Transfer transfer = makeTransfer(100,1);
-        AccountLockingService.AccountPair accountPair = createAccountPair(200,0);
+        Transfer transfer = makeTransfer(100, 1);
+        AccountLockingService.AccountPair accountPair = createAccountPair(200, 0);
 
-        when(accountLockingService.lockTwoAccounts(ACCOUNT_ID_1,ACCOUNT_ID_2)).thenReturn(accountPair);
+        when(accountLockingService.lockTwoAccounts(ACCOUNT_ID_1, ACCOUNT_ID_2)).thenReturn(accountPair);
         when(transferRepo.findByIdForUpdate(DEFAULT_TRANSFER_ID)).thenReturn(Optional.of(transfer));
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
@@ -421,9 +450,9 @@ class TransferServiceTest {
     }
 
     @Test
-    void count_success(){
+    void count_success() {
         when(transferRepo.countTransfersByStatus(TransferStatus.COMPLETED)).thenReturn(5L);
         CountResponse transfersCount = transferService.count();
-        assertEquals(5L,transfersCount.getCount());
+        assertEquals(5L, transfersCount.getCount());
     }
 }

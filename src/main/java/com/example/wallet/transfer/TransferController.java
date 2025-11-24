@@ -31,7 +31,8 @@ public class TransferController {
         return service.transfer(
                 req.getFromAccountId(),
                 req.getToAccountId(),
-                req.getAmount()
+                req.getAmount(),
+                req.getIdempotencyKey()
         );
     }
 
@@ -42,7 +43,8 @@ public class TransferController {
                 req.getFromName(),
                 req.getToName(),
                 req.getCurrency(),
-                req.getAmount()
+                req.getAmount(),
+                req.getIdempotencyKey()
         );
     }
 
