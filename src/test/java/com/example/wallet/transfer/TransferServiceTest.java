@@ -3,6 +3,7 @@ package com.example.wallet.transfer;
 import com.example.wallet.account.Account;
 import com.example.wallet.account.AccountLockingService;
 import com.example.wallet.common.MoneyConstants;
+import com.example.wallet.transfer.dto.CountResponse;
 import com.example.wallet.transfer.dto.TransferResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -340,7 +341,7 @@ class TransferServiceTest {
                 .fromAccountId(ACCOUNT_ID_1)
                 .toAccountId(ACCOUNT_ID_2)
                 .amount(money(100))
-                .createdAt(FIXED_TIME.minusMinutes(5))
+                .createdAt(FIXED_TIME.minusMinutes(4))
                 .id(DEFAULT_TRANSFER_ID)
                 .fee(money(1))
                 .status(TransferStatus.COMPLETED)
@@ -354,5 +355,75 @@ class TransferServiceTest {
         assertEquals(TransferStatus.CANCELLED, response.getStatus());
         assertEquals(expectedFromBalance, accounts.from().getBalance());
         assertEquals(expectedToBalance, accounts.to().getBalance());
+    }
+
+    @Test
+    void cancel_transferNotFound() {
+        when(transferRepo.findByIdForUpdate(DEFAULT_TRANSFER_ID)).thenReturn(Optional.empty());
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> transferService.cancel(DEFAULT_TRANSFER_ID)
+        );
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+
+        assertEquals("no such transfer", ex.getReason());
+    }
+
+    @Test
+    void cancel_cancelledAlready() {
+        Transfer transfer = Transfer.builder()
+                .id(DEFAULT_TRANSFER_ID)
+                .status(TransferStatus.CANCELLED)
+                .build();
+
+        when(transferRepo.findByIdForUpdate(DEFAULT_TRANSFER_ID)).thenReturn(Optional.of(transfer));
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> transferService.cancel(DEFAULT_TRANSFER_ID)
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+
+        assertEquals("transfer already cancelled", ex.getReason());
+    }
+
+    @Test
+    void cancel_cancelTimePassed() {
+        Transfer transfer = Transfer.builder()
+                .id(DEFAULT_TRANSFER_ID)
+                .createdAt(FIXED_TIME.minusMinutes(6))
+                .status(TransferStatus.COMPLETED)
+                .build();
+
+        when(transferRepo.findByIdForUpdate(DEFAULT_TRANSFER_ID)).thenReturn(Optional.of(transfer));
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> transferService.cancel(DEFAULT_TRANSFER_ID)
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+
+        assertEquals("5 minutes passed, can't cancel", ex.getReason());
+    }
+
+    @Test
+    void cancel_insufficientFunds() {
+        Transfer transfer = makeTransfer(100,1);
+        AccountLockingService.AccountPair accountPair = createAccountPair(200,0);
+
+        when(accountLockingService.lockTwoAccounts(ACCOUNT_ID_1,ACCOUNT_ID_2)).thenReturn(accountPair);
+        when(transferRepo.findByIdForUpdate(DEFAULT_TRANSFER_ID)).thenReturn(Optional.of(transfer));
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> transferService.cancel(DEFAULT_TRANSFER_ID)
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+
+        assertEquals("Cannot cancel: recipient has insufficient funds", ex.getReason());
+    }
+
+    @Test
+    void count_success(){
+        when(transferRepo.countTransfersByStatus(TransferStatus.COMPLETED)).thenReturn(5L);
+        CountResponse transfersCount = transferService.count();
+        assertEquals(5L,transfersCount.getCount());
     }
 }

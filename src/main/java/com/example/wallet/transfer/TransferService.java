@@ -78,7 +78,7 @@ public class TransferService {
     @Transactional
     public TransferResponse cancel(UUID id) {
         Transfer t = transferRepo.findByIdForUpdate(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "no such transfer"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "no such transfer"));
 
         if (t.getStatus() == TransferStatus.CANCELLED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "transfer already cancelled");
