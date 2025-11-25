@@ -35,3 +35,7 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# Ignore H2 database files
+*.db
+data/

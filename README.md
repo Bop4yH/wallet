@@ -41,7 +41,7 @@ http://localhost:8080/h2-console
 - Проверять результаты операций
 
 **Подключение:**
-- JDBC URL: `jdbc:h2:mem:walletdb`
+- JDBC URL: `jdbc:h2:file:./data/walletdb;AUTO_SERVER=TRUE`
 - Username: `admin`
 - Password: (оставить пустым)
 
