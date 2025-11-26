@@ -4,6 +4,8 @@ import com.example.wallet.account.Account;
 import com.example.wallet.account.AccountLockingService;
 import com.example.wallet.account.AccountRepository;
 import com.example.wallet.common.MoneyConstants;
+import com.example.wallet.event.TransferCompletedEvent;
+import com.example.wallet.event.TransferProducer;
 import com.example.wallet.transfer.dto.CountResponse;
 import com.example.wallet.transfer.dto.TransferResponse;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,8 @@ public class TransferService {
 
     private final Clock clock;
 
+    private final TransferProducer transferProducer;
+
     /**
      * Выполняет перевод между счетами по их ID.
      * <p>
@@ -59,6 +63,7 @@ public class TransferService {
                 fromId,
                 toId
         );
+
 
         return transferByAccounts(accounts.from(), accounts.to(), amount, idempotencyKey);
     }
@@ -168,6 +173,14 @@ public class TransferService {
                 .build();
 
         t = transferRepo.save(t);
+
+        TransferCompletedEvent event = new TransferCompletedEvent(
+                t.getId(),
+                t.getFromAccountId(),
+                t.getToAccountId(),
+                t.getAmount()
+        );
+        transferProducer.sendTransferEvent(event);
 
         return toResponse(t);
     }

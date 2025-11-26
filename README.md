@@ -45,6 +45,11 @@ http://localhost:8080/h2-console
 - Username: `admin`
 - Password: (оставить пустым)
 
+### Kafka UI
+http://localhost:8090
+
+**Для чего:** Веб-интерфейс для работы с kafka. 
+
 ## 📚 API
 
 ### Счета
