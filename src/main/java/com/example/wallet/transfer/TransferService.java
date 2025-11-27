@@ -4,10 +4,15 @@ import com.example.wallet.account.Account;
 import com.example.wallet.account.AccountLockingService;
 import com.example.wallet.account.AccountRepository;
 import com.example.wallet.common.MoneyConstants;
+import com.example.wallet.configuration.FraudProperties;
 import com.example.wallet.event.TransferCompletedEvent;
 import com.example.wallet.event.TransferProducer;
 import com.example.wallet.transfer.dto.CountResponse;
+import com.example.wallet.transfer.dto.FraudAnalysisResult;
+import com.example.wallet.transfer.dto.FraudRiskLevel;
 import com.example.wallet.transfer.dto.TransferResponse;
+import com.example.wallet.transfer.fraud.FraudRule;
+import com.example.wallet.transfer.fraud.FraudRuleResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,6 +24,8 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,6 +46,10 @@ public class TransferService {
     private final Clock clock;
 
     private final TransferProducer transferProducer;
+
+    private final FraudProperties fraudProperties;
+
+    private final List<FraudRule> fraudRules;
 
     /**
      * Выполняет перевод между счетами по их ID.
@@ -129,6 +140,38 @@ public class TransferService {
 
     public CountResponse count() {
         return new CountResponse(transferRepo.countTransfersByStatus(TransferStatus.COMPLETED));
+    }
+
+    @Transactional(readOnly = true)
+    public FraudAnalysisResult analyzeFraud(TransferCompletedEvent event) {
+        Account fromAccount = accountRepo.findById(event.getFromAccountId())
+                .orElseThrow(() -> new IllegalStateException("Account not found"));
+
+        OffsetDateTime now = OffsetDateTime.now(clock);
+        int totalScore = 0;
+        List<String> reasons = new ArrayList<>();
+
+        for (FraudRule rule : fraudRules) {
+            Optional<FraudRuleResult> resultOpt = rule.check(event, fromAccount, now);
+            if (resultOpt.isPresent()) {
+                FraudRuleResult res = resultOpt.get();
+                totalScore += res.score();
+                reasons.add(res.reason() + " (+" + res.score() + ")");
+            }
+        }
+
+        FraudRiskLevel finalLevel = FraudRiskLevel.LOW;
+        if (totalScore >= fraudProperties.getScoreThresholdHigh()) {
+            finalLevel = FraudRiskLevel.HIGH;
+        } else if (totalScore >= fraudProperties.getScoreThresholdMedium()) {
+            finalLevel = FraudRiskLevel.MEDIUM;
+        }
+
+        return FraudAnalysisResult.builder()
+                .riskLevel(finalLevel)
+                .reasons(reasons)
+                .suspiciousAmount(event.getAmount())
+                .build();
     }
 
     private TransferResponse transferByAccounts(Account from, Account to, BigDecimal amount, UUID idempotencyKey) {

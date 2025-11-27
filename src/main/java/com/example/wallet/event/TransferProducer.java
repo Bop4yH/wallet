@@ -10,9 +10,9 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class TransferProducer {
 
-    private final KafkaTemplate<String, TransferCompletedEvent> kafkaTemplate;
-
     private static final String TOPIC = "transfer-notifications";
+
+    private final KafkaTemplate<String, TransferCompletedEvent> kafkaTemplate;
 
     public void sendTransferEvent(TransferCompletedEvent event) {
         log.info("Sending Kafka event for transfer: {}", event.getTransferId());

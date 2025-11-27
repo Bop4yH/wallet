@@ -11,8 +11,12 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 public class TransferCompletedEvent {
+
     private UUID transferId;
+
     private UUID fromAccountId;
+
     private UUID toAccountId;
+
     private BigDecimal amount;
 }

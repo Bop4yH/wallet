@@ -43,4 +43,9 @@ public interface TransferRepository extends JpaRepository<Transfer, UUID> {
     BigDecimal sumIncomingTransfers(@Param("accountId") UUID toId);
 
     Optional<Transfer> findByIdempotencyKey(UUID idempotencyKey);
+
+    @Query("SELECT COUNT(t) FROM Transfer t " +
+            "WHERE t.fromAccountId = :accountId " +
+            "AND t.createdAt >= :since")
+    long countRecentTransfers(@Param("accountId") UUID accountId, @Param("since") OffsetDateTime since);
 }
