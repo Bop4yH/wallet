@@ -11,7 +11,15 @@ public class KafkaTopicConfig {
     @Bean
     public NewTopic transferTopic() {
         return TopicBuilder.name("transfer-notifications")
-                .partitions(3)
+                .partitions(1)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic fraudAlertsTopic() {
+        return TopicBuilder.name("fraud-alerts")
+                .partitions(5) // 5 операторов, которые будут звонить
                 .replicas(1)
                 .build();
     }
