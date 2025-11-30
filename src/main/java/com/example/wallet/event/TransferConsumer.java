@@ -10,6 +10,8 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
+
 @Component
 @Slf4j
 @AllArgsConstructor
@@ -19,6 +21,7 @@ public class TransferConsumer {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
+    //TODO реализовать идемпотентность через БД
     @KafkaListener(topics = "transfer-notifications", groupId = "wallet-sms-group")
     public void sendSMS(TransferCompletedEvent event) {
         log.info("Start processing transfer {}", event.getTransferId());

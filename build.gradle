@@ -18,29 +18,35 @@ repositories {
 }
 
 dependencies {
+	// --- Spring Core & Web ---
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
+	implementation 'org.springframework.retry:spring-retry'
 
+	// --- Database & Migrations ---
+	runtimeOnly 'org.postgresql:postgresql'
+	runtimeOnly 'com.h2database:h2'
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
-	runtimeOnly 'org.postgresql:postgresql'
 
-	// Swagger / OpenAPI для Spring Boot 3
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
-	runtimeOnly 'com.h2database:h2'
+	// --- Message Broker (Kafka) ---
+	implementation 'org.springframework.kafka:spring-kafka'
 
-	implementation("io.springfox:springfox-swagger-ui:3.0.0")
+	// --- Documentation (Swagger UI) ---
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
 
+	// --- Utilities (Lombok) ---
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 
-	implementation 'org.springframework.kafka:spring-kafka'
-
+	// --- Testing ---
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testImplementation 'org.springframework.kafka:spring-kafka-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+
 test {
 	useJUnitPlatform()
 }

@@ -11,6 +11,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -58,6 +59,8 @@ public class Account {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    @Version
+    private Long version;
     @PrePersist
     void prePersist() {
         if (currency != null) currency = currency.toUpperCase();

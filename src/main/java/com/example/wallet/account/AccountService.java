@@ -6,19 +6,26 @@ import com.example.wallet.account.dto.BalanceResponse;
 import com.example.wallet.common.MoneyConstants;
 import com.example.wallet.transfer.TransferRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AccountService {
 
     private static final String ACCOUNT_NOT_FOUND = "Account not found";
@@ -135,6 +142,21 @@ public class AccountService {
                 transferRepo.sumIncomingTransfers(id),
                 transferRepo.sumOutgoingTransfers(id)
         );
+    }
+
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 1000)
+    )
+    @Transactional
+    public AccountResponse addBonus(UUID id, BigDecimal bonusAmount) {
+        Account account = accountRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Not found"));
+
+        log.info("Поток " + Thread.currentThread().getName() + " прочитал версию: " + account.getVersion());
+        account.setBalance(account.getBalance().add(bonusAmount));
+        return toResponse(account);
     }
 
     private static AccountResponse toResponse(Account a) {

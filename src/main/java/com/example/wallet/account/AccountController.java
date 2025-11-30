@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -98,5 +99,10 @@ public class AccountController {
     @GetMapping("/{id}/stats")
     public AccountStatisticsResponse stats(@PathVariable UUID id) {
         return service.getStatistics(id);
+    }
+
+    @PostMapping("/{id}/bonus")
+    public AccountResponse addBonus(@PathVariable UUID id, @RequestParam BigDecimal amount) {
+        return service.addBonus(id, amount);
     }
 }
