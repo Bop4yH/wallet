@@ -61,6 +61,7 @@ public class Account {
 
     @Version
     private Long version;
+
     @PrePersist
     void prePersist() {
         if (currency != null) currency = currency.toUpperCase();

@@ -6,7 +6,6 @@ import com.example.wallet.account.AccountRepository;
 import com.example.wallet.common.MoneyConstants;
 import com.example.wallet.configuration.FraudProperties;
 import com.example.wallet.event.TransferCompletedEvent;
-import com.example.wallet.event.TransferProducer;
 import com.example.wallet.transfer.dto.CountResponse;
 import com.example.wallet.transfer.dto.FraudAnalysisResult;
 import com.example.wallet.transfer.dto.FraudRiskLevel;
@@ -14,6 +13,7 @@ import com.example.wallet.transfer.dto.TransferResponse;
 import com.example.wallet.transfer.fraud.FraudRule;
 import com.example.wallet.transfer.fraud.FraudRuleResult;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,7 +45,7 @@ public class TransferService {
 
     private final Clock clock;
 
-    private final TransferProducer transferProducer;
+    private final ApplicationEventPublisher eventPublisher;
 
     private final FraudProperties fraudProperties;
 
@@ -223,8 +223,7 @@ public class TransferService {
                 t.getToAccountId(),
                 t.getAmount()
         );
-        transferProducer.sendTransferEvent(event);
-
+        eventPublisher.publishEvent(event);
         return toResponse(t);
     }
 
