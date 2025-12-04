@@ -11,6 +11,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -115,11 +116,8 @@ public class AccountService {
 
     @Transactional
     public void delete(UUID id) {
-        Account toDelete =
-                accountRepo.findByIdForUpdate(id).orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        ACCOUNT_NOT_FOUND
-                ));
+        Account toDelete = accountRepo.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND));
         if (toDelete.getBalance().compareTo(BigDecimal.ZERO) == 0) {
             accountRepo.delete(toDelete);
         } else {
@@ -155,6 +153,11 @@ public class AccountService {
         log.info("Поток " + Thread.currentThread().getName() + " прочитал версию: " + account.getVersion());
         account.setBalance(account.getBalance().add(bonusAmount));
         return toResponse(account);
+    }
+
+    @Recover
+    public AccountResponse recoverBonus(ObjectOptimisticLockingFailureException e, UUID id, BigDecimal bonusAmount) {
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Something went wrong, please try again later");
     }
 
     private static AccountResponse toResponse(Account a) {

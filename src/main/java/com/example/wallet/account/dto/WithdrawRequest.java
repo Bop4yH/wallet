@@ -16,6 +16,6 @@ public class WithdrawRequest {
             fraction = MoneyConstants.SCALE,
             message = "max " + MoneyConstants.SCALE + " fraction digits")
     @NotNull
-    BigDecimal amount;
+    private BigDecimal amount;
 
 }

@@ -53,6 +53,8 @@ public class AccountLockingService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
     }
 
+    //TODO исправить дедлок возможный при одновременных транзакциях по id и по имени с обратным порядком тех же
+    // пользователей
     private Account findAndLockByName(String name, String currency) {
         return accountRepo.findByNameAndCurrencyForUpdate(name, currency)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found: " + name));
