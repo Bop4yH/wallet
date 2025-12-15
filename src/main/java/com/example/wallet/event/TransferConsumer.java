@@ -17,7 +17,7 @@ public class TransferConsumer {
 
     private final TransferService transferService;
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<String, FraudAnalysisResult> kafkaTemplate;
 
     //TODO реализовать идемпотентность через БД
     @KafkaListener(topics = "transfer-notifications", groupId = "wallet-sms-group")

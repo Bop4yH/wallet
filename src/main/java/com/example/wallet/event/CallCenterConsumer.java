@@ -22,17 +22,14 @@ public class CallCenterConsumer {
     )
     public void callClient(FraudAnalysisResult alert) {
         String operatorName = Thread.currentThread().getName();
-
         log.info(
                 "[OPERATOR {}] Calling for transfer {}. RiskLevel: {}. Message: {}.",
                 operatorName, alert.getTransferId(), alert.getRiskLevel(), alert.getMessage()
         );
 
         try {
-
             Thread.sleep(TimeUnit.MINUTES.toMillis(10));
             log.info("[OPERATOR {}] Call finished.", operatorName);
-
         } catch (InterruptedException e) {
             log.warn("Call interrupted!");
             Thread.currentThread().interrupt();
