@@ -19,20 +19,6 @@ public class TransferConsumer {
 
     private final KafkaTemplate<String, FraudAnalysisResult> kafkaTemplate;
 
-    //TODO реализовать идемпотентность через БД
-    @KafkaListener(topics = "transfer-notifications", groupId = "wallet-sms-group")
-    public void sendSMS(TransferCompletedEvent event) {
-        log.info("Start processing transfer {}", event.getTransferId());
-
-        try {
-            Thread.sleep(3000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
-        log.info("SMS sent for transfer {}", event.getTransferId());
-    }
-
     @KafkaListener(topics = "transfer-notifications", groupId = "wallet-fraud-analysis-group")
     public void monitorFraud(TransferCompletedEvent event) {
         FraudAnalysisResult result = transferService.analyzeFraud(event);
