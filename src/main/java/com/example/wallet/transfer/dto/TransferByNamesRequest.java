@@ -1,11 +1,11 @@
 package com.example.wallet.transfer.dto;
 
 import com.example.wallet.common.MoneyConstants;
+import com.example.wallet.validation.CurrencyCode;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -24,7 +24,7 @@ public class TransferByNamesRequest {
     private String toName;
 
     @NotBlank
-    @Pattern(regexp = "^[A-Za-z]{3}$", message = "Use ISO currency code, e.g. RUB")
+    @CurrencyCode
     private String currency;
 
     @NotNull

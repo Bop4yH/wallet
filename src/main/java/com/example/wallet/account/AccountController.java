@@ -6,8 +6,8 @@ import com.example.wallet.account.dto.BalanceResponse;
 import com.example.wallet.account.dto.CreateAccountRequest;
 import com.example.wallet.account.dto.DepositRequest;
 import com.example.wallet.account.dto.WithdrawRequest;
+import com.example.wallet.validation.CurrencyCode;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -54,7 +54,7 @@ public class AccountController {
     @GetMapping("/by-name/{ownerName}")
     public AccountResponse getByName(
             @PathVariable String ownerName,
-            @RequestParam @Pattern(regexp = "^[A-Za-z]{3}$", message = "Currency must be 3 letters") String currency
+            @RequestParam @CurrencyCode String currency
     ) {
         return service.getByName(ownerName, currency);
     }
@@ -73,7 +73,7 @@ public class AccountController {
     @PostMapping(value = "/by-name/{ownerName}/deposit", consumes = MediaType.APPLICATION_JSON_VALUE)
     public AccountResponse depositByName(
             @PathVariable String ownerName,
-            @Pattern(regexp = "^[A-Za-z]{3}$", message = "Currency must be 3 letters")
+            @CurrencyCode
             @RequestParam String currency,
             @Valid @RequestBody DepositRequest req
     ) {
