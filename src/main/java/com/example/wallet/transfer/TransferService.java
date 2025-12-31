@@ -3,6 +3,7 @@ package com.example.wallet.transfer;
 import com.example.wallet.account.Account;
 import com.example.wallet.account.AccountLockingService;
 import com.example.wallet.account.AccountRepository;
+import com.example.wallet.aspect.LogExecutionTime;
 import com.example.wallet.common.MoneyConstants;
 import com.example.wallet.configuration.FraudProperties;
 import com.example.wallet.event.TransferCompletedEvent;
@@ -63,6 +64,7 @@ public class TransferService {
      * @return информация о выполненном переводе
      * @throws ResponseStatusException если счета не найдены, недостаточно средств или валюты не совпадают
      */
+    @LogExecutionTime
     @Transactional
     public TransferResponse transfer(UUID fromId, UUID toId, BigDecimal amount, UUID idempotencyKey) {
         Optional<Transfer> existing = transferRepo.findByIdempotencyKey(idempotencyKey);
@@ -79,6 +81,7 @@ public class TransferService {
         return transferByAccounts(accounts.from(), accounts.to(), amount, idempotencyKey);
     }
 
+    @LogExecutionTime
     @Transactional
     public TransferResponse transferByNames(
             String fromName, String toName, String currency, BigDecimal amount, UUID idempotencyKey) {
@@ -142,6 +145,7 @@ public class TransferService {
         return new CountResponse(transferRepo.countTransfersByStatus(TransferStatus.COMPLETED));
     }
 
+    @LogExecutionTime
     @Transactional(readOnly = true)
     public FraudAnalysisResult analyzeFraud(TransferCompletedEvent event) {
         Account fromAccount = accountRepo.findById(event.getFromAccountId())
