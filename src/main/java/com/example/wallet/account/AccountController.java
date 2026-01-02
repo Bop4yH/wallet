@@ -6,6 +6,7 @@ import com.example.wallet.account.dto.BalanceResponse;
 import com.example.wallet.account.dto.CreateAccountRequest;
 import com.example.wallet.account.dto.DepositRequest;
 import com.example.wallet.account.dto.WithdrawRequest;
+import com.example.wallet.mapper.AccountStatisticsResponseNotificationDto;
 import com.example.wallet.validation.CurrencyCode;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -100,6 +101,12 @@ public class AccountController {
     public AccountStatisticsResponse stats(@PathVariable UUID id) {
         return service.getStatistics(id);
     }
+
+    @GetMapping("/{id}/notification-stats")
+    public AccountStatisticsResponseNotificationDto notificationStats(@PathVariable UUID id) {
+        return service.getNotificationStatistics(id);
+    }
+
 
     @PostMapping("/{id}/bonus")
     public AccountResponse addBonus(@PathVariable UUID id, @RequestParam BigDecimal amount) {

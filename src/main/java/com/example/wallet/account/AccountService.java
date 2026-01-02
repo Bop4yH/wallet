@@ -4,6 +4,8 @@ import com.example.wallet.account.dto.AccountResponse;
 import com.example.wallet.account.dto.AccountStatisticsResponse;
 import com.example.wallet.account.dto.BalanceResponse;
 import com.example.wallet.common.MoneyConstants;
+import com.example.wallet.mapper.AccountStatisticsResponseNotificationDto;
+import com.example.wallet.mapper.NotificationMapper;
 import com.example.wallet.transfer.TransferRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +34,8 @@ public class AccountService {
     private final AccountRepository accountRepo;
 
     private final TransferRepository transferRepo;
+
+    private final NotificationMapper notificationMapper;
 
     public AccountResponse create(String ownerName, String currency) {
         Account a = Account.builder()
@@ -138,6 +142,19 @@ public class AccountService {
                 transferRepo.sumIncomingTransfers(id),
                 transferRepo.sumOutgoingTransfers(id)
         );
+    }
+
+    public AccountStatisticsResponseNotificationDto getNotificationStatistics(UUID id) {
+        Account account = accountRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND));
+        AccountStatisticsResponse response = new AccountStatisticsResponse(
+                account.getBalance(),
+                transferRepo.countIncomingTransfersById(id),
+                transferRepo.countOutgoingTransfersById(id),
+                transferRepo.sumIncomingTransfers(id),
+                transferRepo.sumOutgoingTransfers(id)
+        );
+        return notificationMapper.mapToAccountStatisticsResponseNotificationDto(response);
     }
 
     @Retryable(
