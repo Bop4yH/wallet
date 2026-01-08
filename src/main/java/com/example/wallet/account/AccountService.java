@@ -9,6 +9,7 @@ import com.example.wallet.mapper.NotificationMapper;
 import com.example.wallet.transfer.TransferRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -23,6 +24,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +39,9 @@ public class AccountService {
     private final TransferRepository transferRepo;
 
     private final NotificationMapper notificationMapper;
+
+    @Qualifier("dbExecutor")
+    private final Executor dbExecutor;
 
     public AccountResponse create(String ownerName, String currency) {
         Account a = Account.builder()
@@ -132,15 +138,32 @@ public class AccountService {
         }
     }
 
-    public AccountStatisticsResponse getStatistics(UUID id) {
+    public AccountStatisticsResponse getStatisticsAsync(UUID id) {
         Account account = accountRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND));
+
+        CompletableFuture<Long> incomingCountFuture = CompletableFuture.supplyAsync(
+                () -> transferRepo.countIncomingTransfersById(id), dbExecutor);
+
+        CompletableFuture<Long> outgoingCountFuture = CompletableFuture.supplyAsync(
+                () -> transferRepo.countOutgoingTransfersById(id), dbExecutor);
+
+        CompletableFuture<BigDecimal> incomingSumFuture = CompletableFuture.supplyAsync(
+                () -> transferRepo.sumIncomingTransfers(id), dbExecutor);
+
+        CompletableFuture<BigDecimal> outgoingSumFuture = CompletableFuture.supplyAsync(
+                () -> transferRepo.sumOutgoingTransfers(id), dbExecutor);
+
+        CompletableFuture.allOf(
+                incomingCountFuture, outgoingCountFuture, incomingSumFuture, outgoingSumFuture
+        ).join();
+
         return new AccountStatisticsResponse(
                 account.getBalance(),
-                transferRepo.countIncomingTransfersById(id),
-                transferRepo.countOutgoingTransfersById(id),
-                transferRepo.sumIncomingTransfers(id),
-                transferRepo.sumOutgoingTransfers(id)
+                incomingCountFuture.join(),
+                outgoingCountFuture.join(),
+                incomingSumFuture.join(),
+                outgoingSumFuture.join()
         );
     }
 
