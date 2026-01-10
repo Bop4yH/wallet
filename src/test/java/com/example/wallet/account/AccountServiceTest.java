@@ -315,7 +315,7 @@ class AccountServiceTest {
         when(transferRepo.sumIncomingTransfers(id)).thenReturn(new BigDecimal("1000.00"));
         when(transferRepo.sumOutgoingTransfers(id)).thenReturn(new BigDecimal("500.00"));
 
-        AccountStatisticsResponse stats = accountService.getStatistics(id);
+        AccountStatisticsResponse stats = accountService.getStatisticsAsync(id);
 
         assertEquals(money(500), stats.getCurrentBalance());
         assertEquals(5L, stats.getIncomingTransfersCount());

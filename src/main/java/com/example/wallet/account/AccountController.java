@@ -99,7 +99,7 @@ public class AccountController {
 
     @GetMapping("/{id}/stats")
     public AccountStatisticsResponse stats(@PathVariable UUID id) {
-        return service.getStatistics(id);
+        return service.getStatisticsAsync(id);
     }
 
     @GetMapping("/{id}/notification-stats")
