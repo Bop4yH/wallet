@@ -5,7 +5,7 @@ import com.example.wallet.account.dto.AccountStatisticsResponse;
 import com.example.wallet.account.dto.BalanceResponse;
 import com.example.wallet.common.MoneyConstants;
 import com.example.wallet.mapper.AccountStatisticsResponseNotificationDto;
-import com.example.wallet.mapper.NotificationMapper;
+import com.example.wallet.mapper.WalletMapper;
 import com.example.wallet.transfer.TransferRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +38,7 @@ public class AccountService {
 
     private final TransferRepository transferRepo;
 
-    private final NotificationMapper notificationMapper;
+    private final WalletMapper walletMapper;
 
     @Qualifier("dbExecutor")
     private final Executor dbExecutor;
@@ -51,7 +51,7 @@ public class AccountService {
 
         try {
             a = accountRepo.save(a);
-            return toResponse(a);
+            return walletMapper.toAccountResponse(a);
         } catch (DataIntegrityViolationException e) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
@@ -63,13 +63,13 @@ public class AccountService {
     public AccountResponse get(UUID id) {
         Account a = accountRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND));
-        return toResponse(a);
+        return walletMapper.toAccountResponse(a);
     }
 
     public BalanceResponse getBalance(UUID id) {
         Account a = accountRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND));
-        return new BalanceResponse(a.getBalance(), a.getCurrency());
+        return walletMapper.toBalanceResponse(a);
     }
 
     /**
@@ -88,17 +88,17 @@ public class AccountService {
         BigDecimal normalized = amount.setScale(MoneyConstants.SCALE, RoundingMode.HALF_UP);
         a.setBalance(a.getBalance().add(normalized));
 
-        return toResponse(a);
+        return walletMapper.toAccountResponse(a);
     }
 
     public List<AccountResponse> list() {
-        return accountRepo.findAll().stream().map(AccountService::toResponse).toList();
+        return accountRepo.findAll().stream().map(walletMapper::toAccountResponse).toList();
     }
 
     public AccountResponse getByName(String ownerName, String currency) {
         Account a = accountRepo.findByOwnerNameIgnoreCaseAndCurrency(ownerName, currency.toUpperCase())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, ACCOUNT_NOT_FOUND));
-        return toResponse(a);
+        return walletMapper.toAccountResponse(a);
     }
 
     @Transactional
@@ -109,7 +109,7 @@ public class AccountService {
         BigDecimal normalized = amount.setScale(MoneyConstants.SCALE, RoundingMode.HALF_UP);
         account.setBalance(account.getBalance().add(normalized));
 
-        return toResponse(account);
+        return walletMapper.toAccountResponse(account);
     }
 
     @Transactional
@@ -120,7 +120,7 @@ public class AccountService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient funds");
         }
         from.setBalance(from.getBalance().subtract(amount));
-        return toResponse(from);
+        return walletMapper.toAccountResponse(from);
 
     }
 
@@ -177,7 +177,7 @@ public class AccountService {
                 transferRepo.sumIncomingTransfers(id),
                 transferRepo.sumOutgoingTransfers(id)
         );
-        return notificationMapper.mapToAccountStatisticsResponseNotificationDto(response);
+        return walletMapper.toNotificationDto(response);
     }
 
     @Retryable(
@@ -192,21 +192,11 @@ public class AccountService {
 
         log.info("Поток " + Thread.currentThread().getName() + " прочитал версию: " + account.getVersion());
         account.setBalance(account.getBalance().add(bonusAmount));
-        return toResponse(account);
+        return walletMapper.toAccountResponse(account);
     }
 
     @Recover
     public AccountResponse recoverBonus(ObjectOptimisticLockingFailureException e, UUID id, BigDecimal bonusAmount) {
         throw new ResponseStatusException(HttpStatus.CONFLICT, "Something went wrong, please try again later");
-    }
-
-    private static AccountResponse toResponse(Account a) {
-        return new AccountResponse(
-                a.getId(),
-                a.getOwnerName(),
-                a.getCurrency(),
-                a.getBalance(),
-                a.getCreatedAt()
-        );
     }
 }

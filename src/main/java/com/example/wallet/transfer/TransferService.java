@@ -7,6 +7,7 @@ import com.example.wallet.aspect.LogExecutionTime;
 import com.example.wallet.common.MoneyConstants;
 import com.example.wallet.configuration.FraudProperties;
 import com.example.wallet.event.TransferCompletedEvent;
+import com.example.wallet.mapper.WalletMapper;
 import com.example.wallet.transfer.dto.CountResponse;
 import com.example.wallet.transfer.dto.FraudAnalysisResult;
 import com.example.wallet.transfer.dto.FraudRiskLevel;
@@ -52,6 +53,8 @@ public class TransferService {
 
     private final List<FraudRule> fraudRules;
 
+    private final WalletMapper walletMapper;
+
     /**
      * Выполняет перевод между счетами по их ID.
      * <p>
@@ -69,7 +72,7 @@ public class TransferService {
     public TransferResponse transfer(UUID fromId, UUID toId, BigDecimal amount, UUID idempotencyKey) {
         Optional<Transfer> existing = transferRepo.findByIdempotencyKey(idempotencyKey);
         if (existing.isPresent()) {
-            return toResponse(existing.get());
+            return walletMapper.toTransferResponse(existing.get());
         }
 
         AccountLockingService.AccountPair accounts = accountLockingService.lockTwoAccounts(
@@ -87,7 +90,7 @@ public class TransferService {
             String fromName, String toName, String currency, BigDecimal amount, UUID idempotencyKey) {
         Optional<Transfer> existing = transferRepo.findByIdempotencyKey(idempotencyKey);
         if (existing.isPresent()) {
-            return toResponse(existing.get());
+            return walletMapper.toTransferResponse(existing.get());
         }
 
         AccountLockingService.AccountPair accounts = accountLockingService.lockTwoAccountsByName(
@@ -101,10 +104,7 @@ public class TransferService {
     public TransferResponse get(UUID id) {
         Transfer t = transferRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transfer not found"));
-        return new TransferResponse(
-                t.getId(), t.getFromAccountId(), t.getToAccountId(),
-                t.getAmount(), t.getStatus(), t.getCreatedAt(), t.getFee()
-        );
+        return walletMapper.toTransferResponse(t);
     }
 
     @Transactional
@@ -135,10 +135,7 @@ public class TransferService {
         accounts.from().setBalance(accounts.from().getBalance().add(t.getAmount().add(t.getFee())));
         t.setStatus(TransferStatus.CANCELLED);
 
-        return new TransferResponse(
-                t.getId(), t.getFromAccountId(), t.getToAccountId(),
-                t.getAmount(), t.getStatus(), t.getCreatedAt(), t.getFee()
-        );
+        return walletMapper.toTransferResponse(t);
     }
 
     public CountResponse count() {
@@ -182,7 +179,7 @@ public class TransferService {
 
         Optional<Transfer> existing = transferRepo.findByIdempotencyKey(idempotencyKey);
         if (existing.isPresent()) {
-            return toResponse(existing.get());
+            return walletMapper.toTransferResponse(existing.get());
         }
 
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -221,14 +218,9 @@ public class TransferService {
 
         t = transferRepo.save(t);
 
-        TransferCompletedEvent event = new TransferCompletedEvent(
-                t.getId(),
-                t.getFromAccountId(),
-                t.getToAccountId(),
-                t.getAmount()
-        );
+        TransferCompletedEvent event = walletMapper.toTransferEvent(t);
         eventPublisher.publishEvent(event);
-        return toResponse(t);
+        return walletMapper.toTransferResponse(t);
     }
 
     private void validateDailyLimit(Account account, BigDecimal transferAmount) {
@@ -249,17 +241,5 @@ public class TransferService {
                     )
             );
         }
-    }
-
-    private TransferResponse toResponse(Transfer t) {
-        return new TransferResponse(
-                t.getId(),
-                t.getFromAccountId(),
-                t.getToAccountId(),
-                t.getAmount(),
-                t.getStatus(),
-                t.getCreatedAt(),
-                t.getFee()
-        );
     }
 }
